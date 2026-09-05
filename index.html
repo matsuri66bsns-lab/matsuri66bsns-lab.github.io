@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bukken-radar</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+         line-height: 1.8; max-width: 680px; margin: 0 auto; padding: 32px 20px; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  h2 { font-size: 18px; margin-top: 32px; }
+  .lead { color: #6E6E73; margin-top: 0; }
+  ul { padding-left: 20px; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #E5E5EA; font-size: 14px; color: #6E6E73; }
+  a { color: #0066CC; }
+</style>
+</head>
+<body>
+<h1>bukken-radar</h1>
+<p class="lead">個人が自分のために使う、中古マンション売出情報の収集・評価ツールです。</p>
+
+<h2>何をするツールか</h2>
+<p>
+不動産ポータルサイトから自分宛に届く「新着物件メール」「値下げメール」を読み取り、
+物件情報を構造化して手元のパソコンに蓄積します。国土交通省の不動産情報ライブラリが公開する
+取引価格データと突き合わせて推定成約価格を算出し、売出価格との差（割安度）を評価して、
+自分宛のダイジェストメールで通知します。
+</p>
+
+<h2>できないこと・しないこと</h2>
+<ul>
+  <li>不動産ポータルサイトへの自動アクセス（クローリング、スクレイピング）は行いません。入力は自分宛のメール、公的API、自分で保存したページのみです。</li>
+  <li>作者本人以外は利用しません。一般に公開・配布しているサービスではありません。</li>
+  <li>収集した情報を第三者に提供・販売することはありません。</li>
+</ul>
+
+<h2>技術構成</h2>
+<ul>
+  <li>Python で書かれたコマンドラインツール。パソコン上でのみ動作します</li>
+  <li>データの保存先は同じパソコン内の SQLite ファイルです</li>
+  <li>Gmail API を使い、指定したラベルの付いたメールのみを読み取ります</li>
+</ul>
+
+<footer>
+  <a href="./privacy.html">プライバシーポリシー</a><br>
+  お問い合わせ: radar.bukken66@gmail.com
+</footer>
+</body>
+</html>
