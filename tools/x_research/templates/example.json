@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-09-17T11:00:00+09:00",
+  "config_name": "x-research",
+  "new_post_count": 0,
+  "is_first_run": true,
+  "queries": [
+    {
+      "topic": "テーマ名",
+      "keywords": ["検索に使ったキーワード1", "キーワード2"],
+      "from_date": "2026-09-10",
+      "to_date": "2026-09-17",
+      "result": {
+        "summary": "このテーマ全体の状況を5〜8文で。何が新しく、何が論点かを明示する。",
+        "themes": [
+          {
+            "title": "話題のかたまりの見出し",
+            "description": "この話題が何であるかの説明を1〜2文で。",
+            "posts": [
+              {
+                "url": "https://x.com/handle/status/1234567890",
+                "author": "@handle",
+                "posted_at": "2026-09-15",
+                "excerpt": "投稿本文の要点。原文をそのまま長く引用しない。",
+                "favorite_count": null,
+                "view_count": null,
+                "why_it_matters": "この投稿が注目に値する理由を1〜2文で。",
+                "is_new": true
+              }
+            ]
+          }
+        ],
+        "notable_accounts": [
+          { "handle": "@handle", "reason": "継続的に一次情報を出している、など。" }
+        ],
+        "watch_items": ["今後続報を追うべき論点を3〜6件"]
+      },
+      "citations": ["https://x.com/handle/status/1234567890"],
+      "usage": {}
+    }
+  ]
+}

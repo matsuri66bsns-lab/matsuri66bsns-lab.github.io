@@ -1,117 +1,159 @@
 ---
 name: x-research
-description: X（旧Twitter）の投稿をキーワード・期間・いいね数/表示回数の条件で収集し、話題ごとに整理したHTMLレポートを作る。「Xで〇〇について調べて」「Xの反応をまとめて」「X上の最新動向を知りたい」といった依頼や、定期的なXウォッチの実行時に使う。収集は xAI Grok API の X データソース経由で行い、Xのスクレイピングはしない。
+description: X（旧Twitter）の投稿をキーワード・期間・反響の大きさで収集し、話題ごとに整理したHTMLレポートを作る。「Xで〇〇について調べて」「Xの反応をまとめて」「X上の最新動向を知りたい」といった依頼や、定期的なXウォッチの実行時に使う。追加費用なしのWeb検索モードと、精度の高いGrok APIモードの2つを持つ。Xのスクレイピングはしない。
 ---
 
 # X リサーチ
 
-X上の投稿を収集し、話題のかたまりごとに整理したレポートを出す。
+X上の投稿を収集し、話題のかたまりごとに整理したHTMLレポートを出す。
 
-## 前提の確認
+## モードを選ぶ
 
-実行前に `XAI_API_KEY` が設定されているか確認する。無ければユーザーに伝えて止める。
-キーの発行は https://console.x.ai/ 。
+**2つのモードがあり、既定は A（無料）。** ユーザーが精度や網羅性を求めた場合、
+または config に `"mode": "grok"` がある場合のみ B を使う。
 
-```bash
-test -n "$XAI_API_KEY" && echo "APIキーあり" || echo "XAI_API_KEY が未設定"
-```
-
-**重要な制約**: Claude Code をブラウザ版・リモート実行環境で動かしている場合、`api.x.ai` が
-egress ポリシーでブロックされて実行できないことがある。その場合は、
-ローカル環境の Claude Code で実行するか、GitHub Actions
-（`.github/workflows/x-research.yml`）を使う。疎通確認:
-
-```bash
-curl -sS -o /dev/null -w "%{http_code}\n" --max-time 15 \
-  -H "Authorization: Bearer $XAI_API_KEY" https://api.x.ai/v1/models
-```
-
-`200` 以外（特に `000` や `403`）なら、その環境からは実行できない。
-
-## 手順
-
-### 1. 調査条件を決める
-
-ユーザーの依頼から次を決める。曖昧な点だけ確認し、それ以外は既定値で進める。
-
-| 項目 | 既定値 | 決め方 |
+| | A: Web検索モード（既定） | B: Grok APIモード |
 | --- | --- | --- |
-| テーマ | config.json の queries | 依頼文から。1回の実行で複数テーマ可 |
-| キーワード | テーマから派生 | 日本語・英語の両方、表記ゆれを3〜5個 |
-| 期間 | 直近7日 | 「最近」なら7日、「今日」なら1日、「この1ヶ月」なら30日 |
-| いいね数の下限 | 30 | ノイズが多ければ上げる。ニッチな話題なら 0〜10 に下げる |
-| 表示回数の下限 | 5000 | 同上 |
+| 費用 | **かからない**（Claude Codeの検索機能を使う） | 従量課金。新規登録時の$25無料クレジット内なら実質無料 |
+| APIキー | 不要 | `XAI_API_KEY` が必要 |
+| この環境で動くか | **動く** | `api.x.ai` がブロックされる環境では動かない |
+| 網羅性 | 検索にインデックスされた投稿のみ | Xのデータソースを直接検索 |
+| いいね数・表示回数 | 取れない（フィルタもできない） | 下限を指定して絞り込める |
+| 向いている用途 | 話題の把握、反響の大きい投稿の発見、日常的なウォッチ | 網羅的な調査、数値での足切りが要る調査 |
 
-条件は `tools/x_research/config.json` を編集して指定する。
-一時的な調査なら CLI 引数で上書きできる。
+判断に迷ったら A で試し、物足りなければ B を提案する。
 
-### 2. 収集する
+---
 
-```bash
-python3 tools/x_research/collect.py --config tools/x_research/config.json --days 7
+## モード A: Web検索モード（既定・無料）
+
+Claude Code の WebSearch を `x.com` に絞って使う。スクリプトではなく、**自分で検索して整理する**。
+
+### 1. 検索する
+
+調査テーマから、日本語・英語・表記ゆれを含むクエリを3〜6本立てる。
+各クエリで `allowed_domains: ["x.com"]` を指定して WebSearch を呼ぶ。
+
+```
+WebSearch(query: "Claude Code スキル 使い方", allowed_domains: ["x.com"])
+WebSearch(query: "Claude Code skills workflow", allowed_domains: ["x.com"])
 ```
 
-主なオプション:
+コツ:
 
-- `--days N` — 遡る日数
-- `--from-date YYYY-MM-DD` / `--to-date YYYY-MM-DD` — 期間を直接指定
-- `--topic "テーマ名"` — config 内の特定テーマだけ実行（複数指定可）
-- `--out PATH` — 出力JSONのパス
+- **クエリは短く具体的に。** 長い文章は検索エンジンでヒットしない
+- 1テーマにつき3〜6クエリ。少ないと偏り、多いと冗長になる
+- 期間で絞りたいときはクエリに月名や出来事名を足す。日付指定はできない
+- `x.com/i/trending/...` はトレンドまとめページで、個別投稿より話題の全体像がつかめる
+- `x.com/<handle>/article/...` は長文記事。まとまった解説が多い
 
-出力は `out/x-research/<日付>.json`。標準出力にそのパスが出る。
-`out/x-research/state.json` に既出URLが記録され、次回以降は新規投稿に `is_new` が立つ。
+### 2. 結果を評価する
 
-### 3. レポートにする
+検索結果をそのまま並べない。次を確認してから採用する。
+
+- **URLが投稿を指しているか。** `x.com/<handle>/status/<数字>` が個別投稿。
+  検索結果のタイトルだけで中身を判断しない
+- **同じ話題の重複を畳む。** 同じニュースへの言及が5件並んでも1つの話題にまとめる
+- **宣伝・情報商材的な投稿を落とす。** 「〇〇の全手法を無料公開」系は中身が薄いことが多い
+- **取れなかった情報を捏造しない。** いいね数・正確な投稿日時は基本的に取れない。
+  推測して書かず、空欄にする
+
+### 3. JSONに整理する
+
+`tools/x_research/templates/example.json` と同じ形式でJSONを書き、
+`out/x-research/<日付>.json` に保存する。
+
+いいね数・表示回数は取得できないので `null` のままにする。
+`posted_at` は検索結果から確実にわかる場合のみ入れ、不明なら空文字にする。
+
+### 4. レポートにする
 
 ```bash
 python3 tools/x_research/render.py out/x-research/2026-09-17.json
 ```
 
-同じ場所に `.html` が出る。ユーザーにはこのHTMLファイルを提示する。
+同じ場所にHTMLが出るので、それをユーザーに提示する。
 
-### 4. 結果を読んで補う
+---
 
-生成された JSON を読み、次を確認してからユーザーに報告する。
+## モード B: Grok APIモード
 
-- `themes` が空、または極端に少ない → フィルタが厳しすぎる。下限を下げて再実行する。
-- `result.parse_error` が `true` → モデル出力がJSONにならなかった。再実行する。
-- 投稿の `url` が `https://x.com/...` 以外、または明らかに不自然 → 信頼できない。
-  レポートに残す場合はその旨を注記する。
-- 同じ話題が複数テーマに重複 → レポート本文で統合して説明する。
+xAI Grok API の X データソースを使う。いいね数・表示回数での足切りができる。
 
-報告では、レポートの丸写しではなく **何が新しいか** を先に書く。
-`new_post_count` と `is_new` が立った投稿が、前回からの差分にあたる。
+### 1. 前提を確認する
+
+```bash
+test -n "$XAI_API_KEY" && curl -sS -o /dev/null -w "%{http_code}\n" --max-time 15 \
+  -H "Authorization: Bearer $XAI_API_KEY" https://api.x.ai/v1/models
+```
+
+`200` 以外なら、この環境からは実行できない。**モードAに切り替えるか、
+GitHub Actions を使う**ようユーザーに伝える。キーの発行は https://console.x.ai/ 。
+
+### 2. 条件を決める
+
+`tools/x_research/config.json` を編集する。
+
+| 項目 | 既定値 | 決め方 |
+| --- | --- | --- |
+| テーマ・キーワード | config の queries | 日本語・英語の表記ゆれを3〜5個 |
+| 期間 | 直近7日 | 「最近」なら7日、「今日」なら1日、「この1ヶ月」なら30日 |
+| いいね数の下限 | 30 | ノイズが多ければ上げる。ニッチな話題なら0〜10まで下げる |
+| 表示回数の下限 | 5000 | 同上 |
+
+短い期間を見るときは下限を下げる。投稿直後はまだ反響が伸びていないため。
+
+### 3. 実行する
+
+```bash
+python3 tools/x_research/collect.py --config tools/x_research/config.json --days 7
+python3 tools/x_research/render.py out/x-research/2026-09-17.json
+```
+
+主なオプション: `--days N` / `--from-date` `--to-date` / `--topic "テーマ名"` / `--out PATH`
+
+`out/x-research/state.json` に既出URLが記録され、次回以降は新規投稿に `is_new` が立つ。
+
+### 4. 結果を点検する
+
+- `themes` が空、または極端に少ない → フィルタが厳しすぎる。下限を下げて再実行
+- `result.parse_error` が `true` → モデル出力がJSONにならなかった。再実行
+- `usage.num_sources_used` → 課金量の目安。想定より多ければ `max_search_results` を下げる
+
+---
+
+## 報告のしかた（両モード共通）
+
+レポートの丸写しをしない。**何が新しいか**を先に書く。
+
+- 2回目以降は `new_post_count` と `is_new` が立った投稿が前回からの差分
+- 「見つからなかった」も結果として報告する。無理に埋めない
+- モードAの場合、いいね数が空欄である理由を一度説明する（取得できないため）
 
 ## 定期実行
 
-### GitHub Actions（推奨。実行環境を選ばない）
+### GitHub Actions（モードB・実行環境を選ばない）
 
 `.github/workflows/x-research.yml` が毎週月曜09:00 JSTに走る。
-リポジトリの Settings → Secrets and variables → Actions で `XAI_API_KEY` を登録する。
-結果は Actions の artifact からダウンロードし、要約は実行画面の Summary で読める。
+Settings → Secrets and variables → Actions に `XAI_API_KEY` を登録する。
+結果は Actions の artifact からダウンロードでき、要約は実行画面の Summary で読める。
+手動実行は Actions タブの「Run workflow」から。
 
-手動実行は Actions タブの「Run workflow」から。日数とテーマを指定できる。
-
-### ローカルの Claude Code
+### ローカルの Claude Code（両モード）
 
 ```
 /loop 1d /x-research
 ```
 
-または cron に直接登録する:
-
-```cron
-0 9 * * 1 cd /path/to/repo && XAI_API_KEY=xai-... python3 tools/x_research/collect.py && python3 tools/x_research/render.py $(ls -t out/x-research/*.json | head -1)
-```
+モードAはAPIキーが要らないので、この方法だけで完結する。
 
 ## やらないこと
 
-- Xへの直接アクセス（スクレイピング、非公式API、ログイン利用）はしない。
-  収集は xAI が公式に提供する X データソース経由に限る。
+- Xへの直接アクセス（スクレイピング、非公式API、ログイン利用）はしない
 - 収集結果を `out/` の外に出さない。このリポジトリは GitHub Pages で一般公開されるため、
-  `out/` は `.gitignore` 済み。レポートをコミットしない。
-- 投稿内容を創作しない。見つからなければ「見つからなかった」と報告する。
+  `out/` は `.gitignore` 済み。レポートをコミットしない
+- 投稿内容・数値を創作しない。見つからなければ「見つからなかった」と報告する
 
 ## 詳細
 
-API のパラメータ仕様、コスト、既知の制約は `reference.md` を参照する。
+APIパラメータ仕様、費用の内訳、各手段の比較は `reference.md` を参照する。

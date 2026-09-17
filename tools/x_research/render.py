@@ -248,6 +248,16 @@ def main() -> int:
     with open(args.input, encoding="utf-8") as f:
         doc = json.load(f)
 
+    # 手書きJSON（WebSearchモード）を受け付けるため、最低限の形だけ検証する。
+    if not isinstance(doc, dict) or not isinstance(doc.get("queries"), list):
+        raise SystemExit(
+            f"{args.input} の形式が違う。トップレベルは "
+            '{"queries": [...]} のオブジェクトである必要がある。'
+        )
+    for i, q in enumerate(doc["queries"]):
+        if not isinstance(q, dict) or not isinstance(q.get("result"), dict):
+            raise SystemExit(f"queries[{i}] に result オブジェクトがない。")
+
     out_path = args.out or os.path.splitext(args.input)[0] + ".html"
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
