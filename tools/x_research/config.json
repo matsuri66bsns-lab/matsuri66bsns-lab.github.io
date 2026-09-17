@@ -1,0 +1,37 @@
+{
+  "name": "x-research",
+  "model": "grok-4-fast",
+  "lookback_days": 7,
+  "max_search_results": 30,
+  "timeout_sec": 180,
+  "temperature": 0,
+
+  "filters": {
+    "min_favorite_count": 30,
+    "min_view_count": 5000,
+    "included_x_handles": [],
+    "excluded_x_handles": []
+  },
+
+  "queries": [
+    {
+      "topic": "Claude Code の新機能と使いこなし",
+      "keywords": [
+        "Claude Code",
+        "クロードコード",
+        "Claude Code スキル",
+        "Claude Code MCP"
+      ],
+      "extra_instructions": ""
+    },
+    {
+      "topic": "AIエージェント開発の実務トピック",
+      "keywords": [
+        "AIエージェント 開発",
+        "AI agent 実装",
+        "エージェント 自動化 業務"
+      ],
+      "extra_instructions": "宣伝目的だけの投稿や、内容のない感想は除外する。"
+    }
+  ]
+}

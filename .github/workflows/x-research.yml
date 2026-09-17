@@ -1,0 +1,98 @@
+name: X リサーチ定期収集
+
+on:
+  schedule:
+    # 毎週月曜 09:00 JST（= 日曜 00:00 UTC）
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "遡る日数"
+        required: false
+        default: "7"
+      topic:
+        description: "特定テーマだけ実行する場合はその topic 名（空なら全部）"
+        required: false
+        default: ""
+
+# 収集結果はリポジトリにコミットしない（このリポジトリは GitHub Pages で一般公開されるため）。
+# 成果物は Actions の artifact としてダウンロードする。
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 既出URLを持ち越して「新規投稿」を判定する。キャッシュが無ければ初回扱いで動く。
+      - name: 前回までの state を復元
+        uses: actions/cache/restore@v4
+        with:
+          path: out/x-research/state.json
+          key: x-research-state-${{ github.run_id }}
+          restore-keys: |
+            x-research-state-
+
+      - name: 収集
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${XAI_API_KEY:-}" ]; then
+            echo "::error::リポジトリの Secrets に XAI_API_KEY が設定されていない"
+            exit 1
+          fi
+          ARGS=(--config tools/x_research/config.json --days "${{ inputs.days || '7' }}")
+          if [ -n "${{ inputs.topic }}" ]; then
+            ARGS+=(--topic "${{ inputs.topic }}")
+          fi
+          JSON_PATH=$(python3 tools/x_research/collect.py "${ARGS[@]}")
+          echo "json_path=$JSON_PATH" >> "$GITHUB_ENV"
+          python3 tools/x_research/render.py "$JSON_PATH"
+
+      - name: 実行結果の要約を表示
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os, glob
+          paths = sorted(glob.glob("out/x-research/*.json"))
+          paths = [p for p in paths if not p.endswith("state.json")]
+          if not paths:
+              print("収集結果がありません。")
+              raise SystemExit(0)
+          doc = json.load(open(paths[-1], encoding="utf-8"))
+          print(f"# X リサーチ {doc.get('generated_at','')}\n")
+          print(f"新規投稿: **{doc.get('new_post_count', 0)}** 件\n")
+          for q in doc.get("queries") or []:
+              res = q.get("result") or {}
+              print(f"## {q.get('topic','')}\n")
+              print((res.get("summary") or "（要約なし）") + "\n")
+              for t in res.get("themes") or []:
+                  print(f"- **{t.get('title','')}** — 投稿 {len(t.get('posts') or [])} 件")
+              print()
+          PY
+
+      - name: レポートを artifact として保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: x-research-report
+          path: |
+            out/x-research/*.json
+            out/x-research/*.html
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: state を保存
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: out/x-research/state.json
+          key: x-research-state-${{ github.run_id }}
