@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>秘書AI 処理フロー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #FFFFFF;
+  --bg-2: #F5F6F8;
+  --ink: #1C1E21;
+  --ink-2: #55595F;
+  --ink-3: #8A8E95;
+  --line: #E1E3E8;
+  --lane-a: #FAFBFC;
+  --lane-b: #F3F4F7;
+  /* 担当ごとの色（識別用） */
+  --ol: #2B6CB0;  --ol-t: rgba(43, 108, 176, 0.10);
+  --pa: #0F5FB8;  --pa-t: rgba(15, 95, 184, 0.12);
+  --dr: #5F6368;  --dr-t: rgba(95, 99, 104, 0.10);
+  --gs: #1E7F3C;  --gs-t: rgba(30, 127, 60, 0.12);
+  --cc: #A9520E;  --cc-t: rgba(169, 82, 14, 0.12);
+  --me: #6D45B8;  --me-t: rgba(109, 69, 184, 0.11);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #15171A; --bg-2: #1E2125; --ink: #ECEDEF; --ink-2: #B2B6BD; --ink-3: #7D828A; --line: #2F3338;
+    --lane-a: #181A1E; --lane-b: #1C1F23;
+    --ol: #7DB2EC; --ol-t: rgba(125, 178, 236, 0.14);
+    --pa: #6FA8F0; --pa-t: rgba(111, 168, 240, 0.16);
+    --dr: #A7ADB5; --dr-t: rgba(167, 173, 181, 0.13);
+    --gs: #5CC283; --gs-t: rgba(92, 194, 131, 0.15);
+    --cc: #E9975A; --cc-t: rgba(233, 151, 90, 0.15);
+    --me: #B596F0; --me-t: rgba(181, 150, 240, 0.15);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #15171A; --bg-2: #1E2125; --ink: #ECEDEF; --ink-2: #B2B6BD; --ink-3: #7D828A; --line: #2F3338;
+  --lane-a: #181A1E; --lane-b: #1C1F23;
+  --ol: #7DB2EC; --ol-t: rgba(125, 178, 236, 0.14);
+  --pa: #6FA8F0; --pa-t: rgba(111, 168, 240, 0.16);
+  --dr: #A7ADB5; --dr-t: rgba(167, 173, 181, 0.13);
+  --gs: #5CC283; --gs-t: rgba(92, 194, 131, 0.15);
+  --cc: #E9975A; --cc-t: rgba(233, 151, 90, 0.15);
+  --me: #B596F0; --me-t: rgba(181, 150, 240, 0.15);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15.5px/1.8 var(--font); -webkit-font-smoothing: antialiased; font-feature-settings: "palt" 1; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 40px 20px 72px; }
+.eyebrow { font-size: 13px; color: var(--ink-3); }
+h1 { font-size: clamp(28px, 4.4vw, 40px); line-height: 1.25; margin: 6px 0 10px; text-wrap: balance; }
+.lead { font-size: 16.5px; color: var(--ink-2); max-width: 760px; margin: 0; }
+h2 { font-size: 21px; margin: 52px 0 6px; text-wrap: balance; }
+.sub { color: var(--ink-2); font-size: 14.5px; margin: 0 0 16px; max-width: 760px; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+code { background: var(--bg-2); border-radius: 5px; padding: 1px 6px; overflow-wrap: anywhere; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 20px 0 0; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+figure { margin: 18px 0 0; }
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; background: var(--bg); }
+.scroll svg { display: block; width: 100%; min-width: 900px; height: auto; color: var(--ink-2); }
+figcaption { font-size: 13.5px; color: var(--ink-2); margin-top: 10px; }
+
+/* SVG の見た目（ページ側の CSS で色をテーマに合わせる） */
+.lane-a { fill: var(--lane-a); } .lane-b { fill: var(--lane-b); }
+.lane-name { fill: var(--ink); font: 700 13px var(--font); }
+.lane-sys { fill: var(--ink-3); font: 11px var(--font); }
+.phase { fill: var(--ink); font: 700 12.5px var(--font); }
+.phase-t { fill: var(--ink-3); font: 11px var(--font); }
+.grid { stroke: var(--line); stroke-width: 1; }
+.node rect { stroke-width: 1.5; }
+.n-title { font: 700 13px var(--font); fill: var(--ink); }
+.n-sub { font: 10.5px var(--font); fill: var(--ink-2); }
+.k-ol rect { fill: var(--ol-t); stroke: var(--ol); }
+.k-pa rect { fill: var(--pa-t); stroke: var(--pa); }
+.k-dr rect { fill: var(--dr-t); stroke: var(--dr); }
+.k-gs rect { fill: var(--gs-t); stroke: var(--gs); }
+.k-cc rect { fill: var(--cc-t); stroke: var(--cc); }
+.k-me rect { fill: var(--me-t); stroke: var(--me); }
+.edge { fill: none; stroke: currentColor; stroke-width: 1.5; }
+.edge.back { stroke-dasharray: 4 3; }
+.e-label { fill: var(--ink-2); font: 11px var(--font); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+.tick { stroke: var(--line); }
+.t-axis { stroke: var(--ink-3); stroke-width: 1.5; }
+.t-time { fill: var(--ink); font: 500 12px var(--mono); }
+.t-who { font: 700 12px var(--font); }
+.t-what { fill: var(--ink-2); font: 11px var(--font); }
+.w-ol { fill: var(--ol); } .w-pa { fill: var(--pa); } .w-gs { fill: var(--gs); } .w-cc { fill: var(--cc); } .w-me { fill: var(--me); }
+
+/* 詳細 */
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 20px; align-items: start; }
+.panel { border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px 20px; background: var(--bg); }
+.panel h3 { margin: 0 0 2px; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+.panel .role { font-size: 13.5px; color: var(--ink-2); margin: 0 0 12px; }
+.panel.pa { border-top: 4px solid var(--pa); }
+.panel.gs { border-top: 4px solid var(--gs); }
+.panel.cc { border-top: 4px solid var(--cc); }
+.when { display: inline-block; font-size: 12px; font-weight: 500; border-radius: 999px; padding: 1px 10px; margin: 14px 0 6px; }
+.pa .when { background: var(--pa-t); color: var(--pa); }
+.gs .when { background: var(--gs-t); color: var(--gs); }
+.cc .when { background: var(--cc-t); color: var(--cc); }
+ol.flow { list-style: none; counter-reset: s; padding: 0; margin: 0; }
+ol.flow > li { counter-increment: s; position: relative; padding: 7px 0 7px 34px; border-bottom: 1px solid var(--line); font-size: 14.5px; line-height: 1.65; }
+ol.flow > li:last-child { border-bottom: 0; }
+ol.flow > li::before { content: counter(s); position: absolute; left: 0; top: 8px; width: 22px; height: 22px; border-radius: 50%; font: 500 12px/22px var(--mono); text-align: center; background: var(--bg-2); color: var(--ink-2); }
+ol.flow b { font-weight: 700; }
+.fn { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin-left: 4px; }
+ul.sublist { margin: 4px 0 0; padding-left: 1.2em; font-size: 13.5px; color: var(--ink-2); }
+ul.sublist li { margin: 2px 0; }
+.not { margin-top: 14px; font-size: 13.5px; color: var(--ink-2); background: var(--bg-2); border-radius: 12px; padding: 10px 14px; }
+.not b { color: var(--ink); }
+
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 640px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { background: var(--bg-2); font-weight: 500; font-size: 12.5px; color: var(--ink-2); }
+td:first-child { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+.who { display: inline-flex; align-items: center; gap: 5px; margin-right: 10px; white-space: nowrap; }
+
+@media (max-width: 860px) {
+  .cols { grid-template-columns: minmax(0, 1fr); }
+  .wrap { padding-block: 28px 56px; }
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="eyebrow">秘書AI の仕組み</div>
+  <h1>メール1通が、タスクになるまで</h1>
+  <p class="lead">Power Automate は Outlook から Google Drive への運搬、Apps Script は Drive 上のファイル操作と記録の更新、Claude Code は判断を担当します。3者は直接つながらず、Google Drive のフォルダを介して受け渡します。</p>
+  <div class="legend" aria-label="凡例">
+    <span><i class="dot" style="background:var(--pa)"></i>Power Automate</span>
+    <span><i class="dot" style="background:var(--gs)"></i>Apps Script（GAS）</span>
+    <span><i class="dot" style="background:var(--cc)"></i>Claude Code</span>
+    <span><i class="dot" style="background:var(--dr)"></i>Google Drive（受け渡し場所）</span>
+    <span><i class="dot" style="background:var(--me)"></i>あなた</span>
+  </div>
+
+  <figure>
+    <div class="scroll">
+      <svg viewBox="0 0 1100 530" role="img" aria-label="スイムレーン図。Outlook のメールを Power Automate が Drive の投入口に保存し、Apps Script が10分おきに解析ジョブを作り、Claude Code が毎時49分に解析して結果を書き、Apps Script が結果を案件フォルダの md と db.json に反映し、ダッシュボードで表示・採用する流れ。">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+          </marker>
+        </defs>
+        <!-- レーン背景 -->
+        <rect class="lane-a" x="0" y="40" width="1100" height="80"></rect>
+        <rect class="lane-b" x="0" y="120" width="1100" height="80"></rect>
+        <rect class="lane-a" x="0" y="200" width="1100" height="80"></rect>
+        <rect class="lane-b" x="0" y="280" width="1100" height="80"></rect>
+        <rect class="lane-a" x="0" y="360" width="1100" height="80"></rect>
+        <rect class="lane-b" x="0" y="440" width="1100" height="90"></rect>
+        <line class="grid" x1="130" y1="0" x2="130" y2="530"></line>
+        <line class="grid" x1="0" y1="40" x2="1100" y2="40"></line>
+
+        <!-- レーン名 -->
+        <text class="lane-name" x="16" y="78">Outlook</text><text class="lane-sys" x="16" y="95">Microsoft 365</text>
+        <text class="lane-name" x="16" y="158">Power</text><text class="lane-name" x="16" y="174">Automate</text>
+        <text class="lane-name" x="16" y="238">Google</text><text class="lane-name" x="16" y="254">Drive</text>
+        <text class="lane-name" x="16" y="318">Apps Script</text><text class="lane-sys" x="16" y="335">GAS</text>
+        <text class="lane-name" x="16" y="398">Claude Code</text><text class="lane-sys" x="16" y="415">ルーチン</text>
+        <text class="lane-name" x="16" y="482">あなた</text>
+
+        <!-- 段階 -->
+        <text class="phase" x="210" y="20" text-anchor="middle">1 受信</text><text class="phase-t" x="210" y="34" text-anchor="middle">即時</text>
+        <text class="phase" x="370" y="20" text-anchor="middle">2 書き出し</text><text class="phase-t" x="370" y="34" text-anchor="middle">1分以内</text>
+        <text class="phase" x="530" y="20" text-anchor="middle">3 ジョブ作成</text><text class="phase-t" x="530" y="34" text-anchor="middle">10分おき</text>
+        <text class="phase" x="690" y="20" text-anchor="middle">4 解析</text><text class="phase-t" x="690" y="34" text-anchor="middle">毎時49分（6:49〜17:49）</text>
+        <text class="phase" x="850" y="20" text-anchor="middle">5 反映</text><text class="phase-t" x="850" y="34" text-anchor="middle">10分おき</text>
+        <text class="phase" x="1010" y="20" text-anchor="middle">6 確認・採用</text><text class="phase-t" x="1010" y="34" text-anchor="middle">いつでも</text>
+
+        <!-- ノード -->
+        <g class="node k-ol"><rect x="140" y="54" width="140" height="52" rx="10"></rect><text class="n-title" x="210" y="76" text-anchor="middle">メール受信・送信</text><text class="n-sub" x="210" y="94" text-anchor="middle">受信トレイ／送信済み</text></g>
+        <g class="node k-pa"><rect x="300" y="134" width="140" height="52" rx="10"></rect><text class="n-title" x="370" y="156" text-anchor="middle">フロー A・B</text><text class="n-sub" x="370" y="174" text-anchor="middle">本文を JSON、添付は原本</text></g>
+        <g class="node k-dr"><rect x="300" y="214" width="140" height="52" rx="10"></rect><text class="n-title" x="370" y="236" text-anchor="middle">00_inbox</text><text class="n-sub" x="370" y="254" text-anchor="middle">mail／添付／記録</text></g>
+        <g class="node k-me"><rect x="140" y="454" width="140" height="52" rx="10"></rect><text class="n-title" x="210" y="476" text-anchor="middle">音声・メモ・写真</text><text class="n-sub" x="210" y="494" text-anchor="middle">Drive アプリか画面から</text></g>
+        <g class="node k-gs"><rect x="460" y="294" width="140" height="52" rx="10"></rect><text class="n-title" x="530" y="316" text-anchor="middle">ジョブを作る</text><text class="n-sub" x="530" y="334" text-anchor="middle">材料をまとめる・文字起こし</text></g>
+        <g class="node k-dr"><rect x="460" y="214" width="140" height="52" rx="10"></rect><text class="n-title" x="530" y="236" text-anchor="middle">解析キュー jobs</text><text class="n-sub" x="530" y="254" text-anchor="middle">Google ドキュメント</text></g>
+        <g class="node k-cc"><rect x="620" y="374" width="140" height="52" rx="10"></rect><text class="n-title" x="690" y="396" text-anchor="middle">解析する</text><text class="n-sub" x="690" y="414" text-anchor="middle">分類・要約・タスク分解</text></g>
+        <g class="node k-dr"><rect x="620" y="214" width="140" height="52" rx="10"></rect><text class="n-title" x="690" y="236" text-anchor="middle">解析キュー results</text><text class="n-sub" x="690" y="254" text-anchor="middle">結果 JSON</text></g>
+        <g class="node k-gs"><rect x="780" y="294" width="140" height="52" rx="10"></rect><text class="n-title" x="850" y="316" text-anchor="middle">結果を反映</text><text class="n-sub" x="850" y="334" text-anchor="middle">md 追記・db 更新</text></g>
+        <g class="node k-dr"><rect x="780" y="214" width="140" height="52" rx="10"></rect><text class="n-title" x="850" y="236" text-anchor="middle">10_案件 ほか</text><text class="n-sub" x="850" y="254" text-anchor="middle">.md と db.json</text></g>
+        <g class="node k-gs"><rect x="940" y="294" width="140" height="52" rx="10"></rect><text class="n-title" x="1010" y="316" text-anchor="middle">Web アプリ</text><text class="n-sub" x="1010" y="334" text-anchor="middle">自分だけに公開</text></g>
+        <g class="node k-me"><rect x="940" y="454" width="140" height="52" rx="10"></rect><text class="n-title" x="1010" y="476" text-anchor="middle">ダッシュボード</text><text class="n-sub" x="1010" y="494" text-anchor="middle">提案を採用・完了</text></g>
+
+        <!-- 矢印 -->
+        <polyline class="edge" points="280,80 370,80 370,131" marker-end="url(#ah)"></polyline>
+        <text class="e-label" x="325" y="72" text-anchor="middle">届くたび</text>
+        <line class="edge" x1="370" y1="186" x2="370" y2="211" marker-end="url(#ah)"></line>
+        <text class="e-label" x="378" y="203">保存</text>
+        <polyline class="edge" points="210,454 210,240 297,240" marker-end="url(#ah)"></polyline>
+        <text class="e-label" x="218" y="360">入れる</text>
+        <polyline class="edge" points="370,266 370,320 457,320" marker-end="url(#ah)"></polyline>
+        <text class="e-label" x="414" y="312" text-anchor="middle">読む</text>
+        <line class="edge" x1="530" y1="294" x2="530" y2="269" marker-end="url(#ah)"></line>
+        <text class="e-label" x="538" y="285">作成</text>
+        <polyline class="edge" points="600,256 610,256 610,400 617,400" marker-end="url(#ah)"></polyline>
+        <text class="e-label" x="603" y="386" text-anchor="end">コネクタで読む</text>
+        <line class="edge" x1="690" y1="374" x2="690" y2="269" marker-end="url(#ah)"></line>
+        <text class="e-label" x="698" y="322">新規作成</text>
+        <polyline class="edge" points="760,256 770,256 770,320 777,320" marker-end="url(#ah)"></polyline>
+        <text class="e-label" x="766" y="290" text-anchor="end">読む</text>
+        <line class="edge" x1="850" y1="294" x2="850" y2="269" marker-end="url(#ah)"></line>
+        <text class="e-label" x="858" y="285">追記・更新</text>
+        <polyline class="edge" points="920,240 1000,240 1000,291" marker-end="url(#ah)"></polyline>
+        <text class="e-label" x="960" y="232" text-anchor="middle">読む</text>
+        <line class="edge" x1="1000" y1="346" x2="1000" y2="451" marker-end="url(#ah)"></line>
+        <text class="e-label" x="992" y="400" text-anchor="end">表示</text>
+        <line class="edge back" x1="1022" y1="454" x2="1022" y2="349" marker-end="url(#ah)"></line>
+        <text class="e-label" x="1030" y="400">採用・完了</text>
+      </svg>
+    </div>
+    <figcaption>横方向が時間、縦方向が担当です。Claude Code は Drive のファイルを「読む」「新しく作る」「名前を変える」ことしかできないため、案件フォルダの .md や db.json を書き換えるのはすべて Apps Script です。破線はあなたの操作（採用・完了）が Apps Script を通って db.json と <code>_タスク.md</code> に戻る流れです。</figcaption>
+  </figure>
+
+  <h2>メール1通の所要時間</h2>
+  <p class="sub">8:00 に届いたメールの例です。いちばん長いのは Claude Code の実行を待つ時間で、最大でおよそ1時間20分かかります。18時以降に届いたメールは翌朝 6:49 の回で解析します。</p>
+  <figure>
+    <div class="scroll">
+      <svg viewBox="0 0 940 150" role="img" aria-label="時間軸。8時00分に受信して Power Automate が1分以内に保存、8時10分に Apps Script がジョブを作成、8時49分に Claude Code が解析、9時00分に Apps Script が反映してダッシュボードに表示される。">
+        <line class="t-axis" x1="60" y1="80" x2="880" y2="80"></line>
+        <line class="tick" x1="60" y1="74" x2="60" y2="86"></line><line class="tick" x1="180" y1="74" x2="180" y2="86"></line>
+        <line class="tick" x1="300" y1="74" x2="300" y2="86"></line><line class="tick" x1="420" y1="74" x2="420" y2="86"></line>
+        <line class="tick" x1="540" y1="74" x2="540" y2="86"></line><line class="tick" x1="660" y1="74" x2="660" y2="86"></line>
+        <line class="tick" x1="780" y1="74" x2="780" y2="86"></line>
+        <circle cx="60" cy="80" r="6" class="w-pa"></circle>
+        <circle cx="180" cy="80" r="6" class="w-gs"></circle>
+        <circle cx="648" cy="80" r="6" class="w-cc"></circle>
+        <circle cx="780" cy="80" r="6" class="w-gs"></circle>
+        <text class="t-time" x="60" y="110" text-anchor="middle">8:00</text>
+        <text class="t-time" x="180" y="110" text-anchor="middle">8:10</text>
+        <text class="t-time" x="648" y="110" text-anchor="middle">8:49</text>
+        <text class="t-time" x="780" y="110" text-anchor="middle">9:00</text>
+        <text class="t-who w-pa" x="60" y="48" text-anchor="middle">Power Automate</text>
+        <text class="t-what" x="60" y="64" text-anchor="middle">受信→1分以内に保存</text>
+        <text class="t-who w-gs" x="180" y="48" text-anchor="middle">Apps Script</text>
+        <text class="t-what" x="180" y="64" text-anchor="middle">ジョブを作成</text>
+        <text class="t-who w-cc" x="648" y="48" text-anchor="middle">Claude Code</text>
+        <text class="t-what" x="648" y="64" text-anchor="middle">解析して結果を作成</text>
+        <text class="t-who w-gs" x="780" y="48" text-anchor="middle">Apps Script</text>
+        <text class="t-what" x="780" y="64" text-anchor="middle">反映→画面に表示</text>
+        <line class="tick" x1="190" y1="120" x2="638" y2="120"></line>
+        <line class="tick" x1="190" y1="116" x2="190" y2="124"></line>
+        <line class="tick" x1="638" y1="116" x2="638" y2="124"></line>
+        <text class="t-what" x="414" y="140" text-anchor="middle">この間はルーチンの実行待ち（間隔を短くすると縮む）</text>
+      </svg>
+    </div>
+    <figcaption>目盛りは10分ごと。Apps Script の10分おきの処理と、Claude Code の毎時49分の実行が交互に受け渡します。</figcaption>
+  </figure>
+
+  <h2>それぞれが行う処理</h2>
+  <p class="sub">処理名の横の英字は、コード上の関数名やアクション名です。</p>
+  <div class="cols">
+    <section class="panel pa" aria-labelledby="pa-h">
+      <h3 id="pa-h"><i class="dot" style="background:var(--pa)"></i>Power Automate</h3>
+      <p class="role">Outlook から Drive への運搬係。中身は判断しません。</p>
+
+      <span class="when">フロー A：受信トレイにメールが届くたび</span>
+      <ol class="flow">
+        <li><b>メールを受け取る</b><span class="fn">新しいメールが届いたとき (V3)</span><br>本文・宛先・添付ファイルを含めて取得</li>
+        <li><b>保存名を決める</b><span class="fn">key</span><br>受信日時（日本時間）＋乱数8桁。例 <code>20260925-081200_ab12cd34</code></li>
+        <li><b>本文をテキストにする</b><span class="fn">html2text</span><br>HTML メールを文字だけに変換</li>
+        <li><b>添付を1つずつ保存</b><span class="fn">Apply to each ＋ 条件</span><br>本文に埋め込まれた画像を除き、<code>00_inbox/attachments/&lt;key&gt;__元の名前</code> として原本のまま保存</li>
+        <li><b>添付の一覧を作る</b><span class="fn">attachments_select</span><br>名前・種類・サイズ</li>
+        <li><b>メール JSON を組み立てる</b><span class="fn">mail_json</span><br>差出人・宛先・CC・件名・本文・会話 ID・Outlook へのリンク・添付一覧</li>
+        <li><b>JSON を保存</b><span class="fn">ファイルの作成</span><br><code>00_inbox/mail/&lt;key&gt;.json</code>。添付の保存が終わってから作るので、Apps Script が取りこぼさない</li>
+      </ol>
+
+      <span class="when">フロー B：送信済みアイテムに入るたび</span>
+      <ol class="flow">
+        <li><b>フロー A と同じ処理</b><br>違いは <code>"direction": "out"</code> だけ。自分が約束したこと・相手に頼んだことの材料になります</li>
+      </ol>
+
+      <span class="when">フロー C：導入時に1回（手動）</span>
+      <ol class="flow">
+        <li><b>過去6か月を日ごとに書き出す</b><br>件名・差出人・宛先・冒頭文だけを <code>00_inbox/bootstrap/日付.json</code> に保存（本文全体は読まない）</li>
+      </ol>
+
+      <div class="not"><b>やらないこと：</b>メルマガの判定、案件の振り分け、要約。判断はすべて Claude Code に任せ、フローは単純な運搬だけにしています。</div>
+    </section>
+
+    <section class="panel gs" aria-labelledby="gs-h">
+      <h3 id="gs-h"><i class="dot" style="background:var(--gs)"></i>Apps Script（GAS）</h3>
+      <p class="role">Drive 上のファイル操作と記録の更新係。判断はしません。</p>
+
+      <span class="when">10分おき：tick</span>
+      <ol class="flow">
+        <li><b>解析結果を反映する</b><span class="fn">applyResults_</span><br><code>results</code> の結果 JSON を読み、種類ごとに次を行います。
+          <ul class="sublist">
+            <li>メール：メルマガ判定なら保管庫へ。案件を確定（新しい工事は「提案」として案件マスタに追加）。添付を案件の「添付」フォルダへ移して <code>_添付台帳.md</code> に1行追記。スレッドの .md に追記（初回は作成）。<code>_決定事項.md</code> に追記。db.json に要約・提案タスク・相手待ち・予定・完了候補を登録</li>
+            <li>記録：議事録 .md を作成し、音声・文字起こしを「記録/原本」へ移動</li>
+            <li>日次：<code>_案件カルテ.md</code> を書き直し、「今日の段取り」を保存</li>
+            <li>壊れた結果：最大3回まで解析をやり直させる</li>
+          </ul>
+        </li>
+        <li><b>メールから解析ジョブを作る</b><span class="fn">prepareMailJobs_</span><br>作成から2分以上たった JSON を読み、同じ key の添付を集めます（届くまで最大15分待つ）。ZIP は展開し、PDF・Word・Excel・画像は Claude が読めるよう形式を直して fileId を記載。旧形式の xls などはテキストに変換、CAD は「読めない」と明記。返信の引用部分を削り、案件一覧・営業日カレンダー・同じスレッドの進行中タスクを添えて Google ドキュメントとして <code>jobs</code> に作成。原本は <code>_queued</code> へ</li>
+        <li><b>記録から解析ジョブを作る</b><span class="fn">prepareRecordJobs_</span><br>音声は Gemini で文字起こししてから、メモ・PDF・写真はそのまま材料にしてジョブを作成</li>
+        <li><b>止まったジョブを戻す</b><span class="fn">recoverStaleJobs_</span><br>「処理中」のまま24時間たったジョブを「待機」に戻す</li>
+        <li><b>タスクと案件の集計を更新</b><span class="fn">writeTasksMd_ ／ syncProjectsToDb_</span><br>動きのあった案件の <code>_タスク.md</code> を書き出し、未完了・期限切れ・相手待ちの件数を更新</li>
+      </ol>
+
+      <span class="when">毎朝 5:30：prepareDailyJob</span>
+      <ol class="flow">
+        <li><b>日次ジョブを作る</b><br>直近2日に動いた案件の材料（前回のカルテ・メール要約・記録・決定事項・未完了タスク）と、今日の期限・予定・相手待ちをまとめる。6:49 の解析で「今日の段取り」と案件カルテになります</li>
+      </ol>
+
+      <span class="when">ダッシュボードを操作したとき：Web アプリ</span>
+      <ol class="flow">
+        <li><b>画面を表示</b><span class="fn">apiGetDb</span><br>db.json を読んで返す。.md は登録済みのものだけ読める</li>
+        <li><b>タスクの採用・完了・編集</b><span class="fn">apiUpdateTask</span><br>db.json を更新し、案件の <code>_タスク.md</code> を書き直す</li>
+        <li><b>記録の投稿</b><span class="fn">apiSubmitMemo ／ apiUploadRecord</span><br>メモはその場で解析ジョブに、ファイルは <code>00_inbox/records</code> に保存</li>
+        <li><b>案件の追加・編集</b><span class="fn">apiUpsertProject</span><br><code>_system/案件マスタ.md</code> を更新</li>
+        <li><b>初期設定・初期分析</b><span class="fn">apiSaveSettings ／ apiStartBootstrap</span><br>フォルダと定期処理の作成、過去メールの初期分析ジョブの作成</li>
+      </ol>
+
+      <div class="not"><b>やらないこと：</b>分類・要約・タスクの判断。Apps Script は Claude Code が書いた結果を、決まった書式で .md と db.json に書き込むだけです。</div>
+    </section>
+  </div>
+
+  <section class="panel cc" style="margin-top:20px" aria-labelledby="cc-h">
+    <h3 id="cc-h"><i class="dot" style="background:var(--cc)"></i>Claude Code（解析ルーチン）</h3>
+    <p class="role">判断の担当。毎時49分（6:49〜17:49）に Claude Sonnet 5 で動きます。</p>
+    <ol class="flow">
+      <li><b>待機中のジョブを探す</b><br>名前が「秘書AI_JOB_待機_」のもの。最大15件、日次 → 記録 → メールの順</li>
+      <li><b>名前を「処理中」に変えてから読む</b><br>ジョブ本体と、ジョブに fileId が書かれた添付だけを Drive コネクタで読む</li>
+      <li><b>手順書に沿って判断する</b><br>メルマガか、どの案件か、要約・決定事項・懸案、本人のタスクとサブタスク・期日・根拠、相手待ち、予定、添付の図番・版</li>
+      <li><b>形式を検証してから結果を書く</b><br><code>validate.mjs</code> で確認し、<code>results</code> に新しいファイルとして作成。ジョブの名前を「処理済」に変える</li>
+    </ol>
+    <div class="not"><b>やらないこと：</b>.md や db.json の編集、ファイルの共有・削除、メール内の URL を開くこと、リポジトリへの書き込み。メール本文に指示が書かれていても従いません。</div>
+  </section>
+
+  <h2>受け渡しに使う場所</h2>
+  <p class="sub">3者は直接通信せず、Google Drive「秘書AI」フォルダの中だけでつながっています。</p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>場所</th><th>書く</th><th>読む</th></tr></thead>
+      <tbody>
+        <tr><td>00_inbox/mail</td><td><span class="who"><i class="dot" style="background:var(--pa)"></i>Power Automate</span></td><td><span class="who"><i class="dot" style="background:var(--gs)"></i>Apps Script</span></td></tr>
+        <tr><td>00_inbox/attachments</td><td><span class="who"><i class="dot" style="background:var(--pa)"></i>Power Automate</span></td><td><span class="who"><i class="dot" style="background:var(--gs)"></i>Apps Script</span><span class="who"><i class="dot" style="background:var(--cc)"></i>Claude Code（中身）</span></td></tr>
+        <tr><td>00_inbox/records</td><td><span class="who"><i class="dot" style="background:var(--me)"></i>あなた</span><span class="who"><i class="dot" style="background:var(--gs)"></i>Web アプリ</span></td><td><span class="who"><i class="dot" style="background:var(--gs)"></i>Apps Script</span></td></tr>
+        <tr><td>01_解析キュー/jobs</td><td><span class="who"><i class="dot" style="background:var(--gs)"></i>Apps Script</span><span class="who"><i class="dot" style="background:var(--cc)"></i>Claude Code（名前の変更のみ）</span></td><td><span class="who"><i class="dot" style="background:var(--cc)"></i>Claude Code</span></td></tr>
+        <tr><td>01_解析キュー/results</td><td><span class="who"><i class="dot" style="background:var(--cc)"></i>Claude Code</span></td><td><span class="who"><i class="dot" style="background:var(--gs)"></i>Apps Script</span></td></tr>
+        <tr><td>10_案件 ／ 20_一般 ／ 30_日次ブリーフ</td><td><span class="who"><i class="dot" style="background:var(--gs)"></i>Apps Script</span></td><td><span class="who"><i class="dot" style="background:var(--me)"></i>あなた（Drive・Claude アプリ）</span><span class="who"><i class="dot" style="background:var(--gs)"></i>Web アプリ</span></td></tr>
+        <tr><td>_system/db.json</td><td><span class="who"><i class="dot" style="background:var(--gs)"></i>Apps Script</span></td><td><span class="who"><i class="dot" style="background:var(--gs)"></i>Web アプリ</span></td></tr>
+        <tr><td>_system/案件マスタ.md</td><td><span class="who"><i class="dot" style="background:var(--gs)"></i>Apps Script</span><span class="who"><i class="dot" style="background:var(--me)"></i>あなた（編集可）</span></td><td><span class="who"><i class="dot" style="background:var(--gs)"></i>Apps Script（ジョブに添える）</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>
