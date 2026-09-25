@@ -123,7 +123,7 @@ function clip_(text) {
 /** UTF-8 で読んで文字化けしていれば Shift_JIS で読み直す */
 function decodeText_(blob) {
   const utf8 = blob.getDataAsString('UTF-8');
-  if (utf8.indexOf('�') < 0) return utf8;
+  if (utf8.indexOf('\uFFFD') < 0) return utf8;
   return blob.getDataAsString('Shift_JIS');
 }
 
