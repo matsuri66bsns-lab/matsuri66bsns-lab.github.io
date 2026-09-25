@@ -42,7 +42,7 @@ function prepareOneMail_(file) {
   while (it.hasNext()) attachFiles.push(it.next());
   attachFiles.sort((a, b) => a.getName() < b.getName() ? -1 : 1);
 
-  const expected = (mail.attachments || []).filter(a => !a.isInline && a.isInline !== 'True').length;
+  const expected = (mail.attachments || []).filter(a => String(a.isInline).toLowerCase() !== 'true').length;
   if (attachFiles.length < expected && Date.now() - file.getDateCreated().getTime() < 15 * 60 * 1000) return false;
   attachFiles = expandZips_(attachFiles, key, attachFolder);
 

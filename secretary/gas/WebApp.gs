@@ -142,3 +142,47 @@ function apiRunNow() {
   tick();
   return apiGetDb();
 }
+
+/* ---------------- 初期設定（ダッシュボードの設定画面から行う） ---------------- */
+
+/** 設定の状態。未設定ならダッシュボードは初期設定画面を出す */
+function apiGetSetupState() {
+  const p = PropertiesService.getScriptProperties();
+  const rootId = p.getProperty('ROOT_FOLDER_ID');
+  let rootUrl = '';
+  if (rootId) {
+    try { rootUrl = DriveApp.getFolderById(rootId).getUrl(); } catch (e) { rootUrl = ''; }
+  }
+  return JSON.stringify({
+    ready: !!(rootId && p.getProperty('OWNER_NAME') && p.getProperty('OWNER_EMAILS')),
+    name: p.getProperty('OWNER_NAME') || '',
+    emails: p.getProperty('OWNER_EMAILS') || '',
+    role: prop_('OWNER_ROLE', CONFIG.DEFAULT_ROLE),
+    hasGemini: !!p.getProperty('GEMINI_API_KEY'),
+    rootUrl: rootUrl,
+    resultsFolderId: rootId ? folder_(PATHS.RESULTS).getId() : '',
+  });
+}
+
+/**
+ * 氏名・アドレス・立場・Gemini キーを保存し、初回ならフォルダとトリガーを作る。
+ * Gemini キーは空欄なら既存の値を残す。
+ */
+function apiSaveSettings(input) {
+  const name = String(input.name || '').trim();
+  const emails = String(input.emails || '').split(/[,、\s]+/).map(s => s.trim()).filter(Boolean);
+  if (!name || !emails.length) throw new Error('氏名と業務用メールアドレスを入力してください');
+  const p = PropertiesService.getScriptProperties();
+  p.setProperty('OWNER_NAME', name);
+  p.setProperty('OWNER_EMAILS', emails.join(','));
+  p.setProperty('OWNER_ROLE', String(input.role || '').trim() || CONFIG.DEFAULT_ROLE);
+  if (input.geminiKey && String(input.geminiKey).trim()) p.setProperty('GEMINI_API_KEY', String(input.geminiKey).trim());
+  if (!p.getProperty('ROOT_FOLDER_ID') || input.rerunSetup) setup();
+  return apiGetSetupState();
+}
+
+/** 過去メールの初期分析を始める（00_inbox/bootstrap に Power Automate の書き出しがある前提） */
+function apiStartBootstrap() {
+  bootstrapPrepare();
+  return apiGetDb();
+}

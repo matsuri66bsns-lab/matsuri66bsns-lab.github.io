@@ -76,13 +76,15 @@ const sandbox = {
 };
 const ctx = vm.createContext(sandbox);
 const code = readdirSync(gasDir).filter(f => f.endsWith('.gs')).map(f => readFileSync(join(gasDir, f), 'utf8')).join('\n');
-vm.runInContext(code + '\nthis.__api = { setup, tick, prepareDailyJob, apiGetDb, apiUpdateTask, apiSubmitMemo, loadDb_, PATHS, folder_, listFiles_, readText_, JOB_PREFIX, saveProjects_ };', ctx);
+vm.runInContext(code + '\nthis.__api = { setup, apiSaveSettings, apiGetSetupState, tick, prepareDailyJob, apiGetDb, apiUpdateTask, apiSubmitMemo, loadDb_, PATHS, folder_, listFiles_, readText_, JOB_PREFIX, saveProjects_ };', ctx);
 const G = ctx.__api;
 
 /* ---------- シナリオ ---------- */
-props.set('OWNER_NAME', '山田 太郎');
-props.set('OWNER_EMAILS', 'yamada@example.co.jp');
-G.setup();
+assert.equal(JSON.parse(G.apiGetSetupState()).ready, false, '初回は未設定');
+const st = JSON.parse(G.apiSaveSettings({ name: '山田 太郎', emails: 'yamada@example.co.jp, t-yamada@example.co.jp', role: '', geminiKey: '' }));
+assert.equal(st.ready, true, '保存で初期設定が完了する');
+assert.equal(props.get('OWNER_EMAILS'), 'yamada@example.co.jp,t-yamada@example.co.jp');
+assert.equal(props.get('OWNER_ROLE'), 'ゼネコン・工務店の施工管理担当');
 G.saveProjects_([{ id: 'P-2026-001', name: '(仮称)桜台三丁目共同住宅新築工事', status: '進行中', phase: '躯体工事', client: '桜台ハウジング', location: '横浜市青葉区', aliases: ['桜台'], domains: ['sakuradai.example.jp'] }]);
 
 const key = '20260925-091200_ab12cd34';

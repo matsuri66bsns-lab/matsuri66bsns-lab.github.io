@@ -140,7 +140,7 @@ footer { border-top: 1px solid var(--line); padding-block: 30px 60px; color: var
     <a href="#answers">回答の反映</a><a href="#arch">全体構成</a><a href="#grain">粒度と分類</a><a href="#attach">添付の読み方</a><a href="#records">打合せ記録</a>
     <a href="#tasks">タスク提案</a><a href="#dash">ダッシュボード</a><a href="#setup">導入手順</a><a href="#usage">実行間隔と利用量</a><a href="#risk">注意点</a>
   </nav>
-  <a class="cta" href="#setup">導入手順</a>
+  <a class="cta" href="setup.html">導入ガイド</a>
 </div></div>
 
 <header class="wrap hero">
@@ -149,7 +149,7 @@ footer { border-top: 1px solid var(--line); padding-block: 30px 60px; color: var
   <p>Outlook の業務メールと、官公庁協議・発注者打合せ・職長会の記録を、クラウドで動く Claude Code が定期的に読みます。案件ごとの Markdown に整理し続け、あなたがやるべきことを期日付きの段取りに分解して提案します。</p>
   <div class="hero-links">
     <a class="pill fill" href="gas/Dashboard.html">ダッシュボードのデモを開く</a>
-    <a class="pill" href="#setup">導入手順を見る</a>
+    <a class="pill" href="setup.html">導入ガイドを開く</a>
   </div>
 </header>
 
@@ -167,7 +167,7 @@ footer { border-top: 1px solid var(--line); padding-block: 30px 60px; color: var
         <tr><td>音声の文字起こし</td><td>Gemini API で自動化</td><td><span class="tag-ok">そのまま</span> Apps Script が Gemini で文字起こししてから解析キューに入れます。</td></tr>
         <tr><td>タスクの確定</td><td>すべて提案で止める</td><td><span class="tag-ok">そのまま</span> 自動採用はしません（<code>AUTO_ACCEPT_HIGH_CONFIDENCE: false</code>）。</td></tr>
         <tr><td>初期分析の期間</td><td>6か月</td><td><span class="tag-ok">そのまま</span> フロー C の日数を 180 にします。</td></tr>
-        <tr><td>実行間隔</td><td>7時〜18時の1時間おき</td><td><span class="tag-ok">反映</span> ルーチンは導入完了後に作成します。</td></tr>
+        <tr><td>実行間隔</td><td>7時〜18時の1時間おき</td><td><span class="tag-ok">反映</span> ルーチンを作成済み（毎時49分に実行。Google Drive コネクタの追加待ちで停止中）。</td></tr>
         <tr><td>補足</td><td>API ではなくクラウドの Claude Code で解析</td><td><span class="tag-chg">変更</span> Claude API の呼び出しをすべて外し、Apps Script と Claude Code が Google Drive 上の「解析キュー」で受け渡す構成にしました（次節）。</td></tr>
       </tbody>
     </table></div>
@@ -386,63 +386,14 @@ footer { border-top: 1px solid var(--line); padding-block: 30px 60px; color: var
   <div class="wrap">
     <div class="sec-no">07</div>
     <h2>導入手順</h2>
-    <p class="lead">所要時間の目安は2〜3時間です。コードはこのリポジトリの <code>secretary/</code> にあります。先に PR をマージしてください（Claude Code のルーチンは既定のブランチの手順書を読みます）。</p>
-
-    <h3>A. Google 側（Apps Script）</h3>
+    <p class="lead">手順はすべて<a href="setup.html">導入ガイド</a>にまとめました。コードや式は「コピー」ボタンで貼るだけです。全体で約40分です。</p>
     <ol class="steps">
-      <li><b>Apps Script プロジェクトを作る</b><span class="d"><a href="https://script.new" target="_blank" rel="noopener">script.new</a> で新規作成し、<code>secretary/gas/</code> の各ファイルを同じ名前で作って貼り付けます。<code>appsscript.json</code> は「プロジェクトの設定 → 『appsscript.json』マニフェスト ファイルをエディタで表示する」をオンにしてから置き換えます。clasp を使う場合は <code>clasp create --type standalone --rootDir secretary/gas</code> → <code>clasp push</code>。</span></li>
-      <li><b>スクリプト プロパティを登録する</b><span class="d"><code>OWNER_NAME</code>（氏名）、<code>OWNER_EMAILS</code>（自分のアドレス。エイリアスもカンマ区切りで）、<code>GEMINI_API_KEY</code>（Google AI Studio で発行）。立場を変える場合だけ <code>OWNER_ROLE</code>。</span></li>
-      <li><b>setup() を実行する</b><span class="d">初回は権限の承認画面が出ます。マイドライブに「秘書AI」フォルダと解析キューが作られ、10分おきの処理と朝5時半の日次ジョブ作成が登録されます。</span></li>
-      <li><b>Web アプリとしてデプロイする</b><span class="d">「デプロイ → 新しいデプロイ → ウェブアプリ」。実行ユーザーは「自分」、アクセスは「自分のみ」。発行された URL を iPhone のホーム画面に追加します。</span></li>
-    </ol>
-
-    <h3>B. Claude Code 側（解析ルーチン）</h3>
-    <ol class="steps">
-      <li><b>Google Drive コネクタを接続する</b><span class="d">claude.ai の設定 → コネクタで Google Drive を、「秘書AI」フォルダがあるのと同じ Google アカウントで接続します（接続済みなら不要）。</span></li>
-      <li><b>ルーチンを作る</b><span class="d">このセッションで作成できます（依頼してください）。内容: 実行間隔 = 毎日7時〜18時の1時間おき（日本時間）、毎回新しいセッションで実行、コネクタ = Google Drive、モデル = Claude Sonnet 5、プロンプト = <code>secretary/agent/routine-prompt.txt</code>。</span></li>
-      <li><b>動作確認</b><span class="d">テストメールを1通流し、ジョブができたらルーチンを手動で1回実行します。<code>01_解析キュー/results</code> に結果ができ、10分以内に案件フォルダへ .md が入れば完了です。</span></li>
-    </ol>
-
-    <h3>C. Microsoft 側（Power Automate）</h3>
-    <p>先に Outlook の仕分けルールで、明らかなメールマガジンを別フォルダへ移しておくと、フローの起動自体が減ります。</p>
-    <h4>フロー A: 受信メール → Drive</h4>
-    <ol class="steps">
-      <li><b>トリガー: Office 365 Outlook「新しいメールが届いたとき (V3)」</b><span class="d">フォルダー: 受信トレイ／添付ファイルを含める: はい。</span></li>
-      <li><b>変数を初期化: key（文字列）</b><span class="d"><code>@{formatDateTime(convertFromUtc(triggerOutputs()?['body/receivedDateTime'],'Tokyo Standard Time'),'yyyyMMdd-HHmmss')}_@{substring(replace(guid(),'-',''),0,8)}</code></span></li>
-      <li><b>HTML からテキストへ（コンテンツ変換）</b><span class="d">コンテンツ: <code>triggerOutputs()?['body/body']</code>。アクション名は「HTML_からテキストへ」のままにします。</span></li>
-      <li><b>作成: 除外アドレス／除外ドメイン</b><span class="d">JSON 配列で登録します。例 <code>["news@example.jp"]</code>。ダッシュボードの「稼働状況」に出る送信元を順次追加します。</span></li>
-      <li><b>条件: 配信メールか</b><span class="d">式で次を入れ、「はい」側は何もしない（終了）にします。<br><code>@or(contains(outputs('除外アドレス'), toLower(triggerOutputs()?['body/from'])), contains(outputs('除外ドメイン'), last(split(toLower(triggerOutputs()?['body/from']), '@'))), contains(body('HTML_からテキストへ'), '配信停止'), contains(body('HTML_からテキストへ'), '配信解除'), contains(toLower(body('HTML_からテキストへ')), 'unsubscribe'))</code></span></li>
-      <li><b>「いいえ」側: 添付を保存（Apply to each）</b><span class="d">対象 <code>triggerOutputs()?['body/attachments']</code>。<code>items('Apply_to_each')?['isInline']</code> が false のとき、Google Drive「ファイルの作成」: フォルダー <code>/秘書AI/00_inbox/attachments</code>、名前 <code>@{variables('key')}__@{items('Apply_to_each')?['name']}</code>、内容 <code>@{base64ToBinary(items('Apply_to_each')?['contentBytes'])}</code></span></li>
-      <li><b>選択: 添付一覧</b><span class="d">From <code>triggerOutputs()?['body/attachments']</code>、マップ: name / contentType / size / isInline。アクション名は「選択」。</span></li>
-      <li><b>作成: メール JSON（下のコードをそのまま貼る）→ Drive に保存</b><span class="d">Google Drive「ファイルの作成」: フォルダー <code>/秘書AI/00_inbox/mail</code>、名前 <code>@{variables('key')}.json</code>、内容 <code>@{outputs('作成')}</code>。<b>添付の保存より後</b>に置きます。</span></li>
-    </ol>
-<pre>{
-  "schema": "mail.v1",
-  "direction": "in",
-  "id": "@{triggerOutputs()?['body/id']}",
-  "internetMessageId": "@{triggerOutputs()?['body/internetMessageId']}",
-  "conversationId": "@{triggerOutputs()?['body/conversationId']}",
-  "receivedAt": "@{triggerOutputs()?['body/receivedDateTime']}",
-  "from": "@{triggerOutputs()?['body/from']}",
-  "to": "@{triggerOutputs()?['body/toRecipients']}",
-  "cc": "@{triggerOutputs()?['body/ccRecipients']}",
-  "subject": "@{triggerOutputs()?['body/subject']}",
-  "importance": "@{triggerOutputs()?['body/importance']}",
-  "bodyText": "@{body('HTML_からテキストへ')}",
-  "bodyPreview": "@{triggerOutputs()?['body/bodyPreview']}",
-  "attachments": "@body('選択')",
-  "webLink": "https://outlook.office.com/mail/deeplink/read/@{encodeUriComponent(triggerOutputs()?['body/id'])}"
-}</pre>
-    <div class="note">「作成」の入力が正しい JSON として認識されていれば、本文の引用符や改行は自動でエスケープされます。webLink で Outlook が開かない環境では空文字にして構いません。</div>
-    <h4>フロー B: 送信メール → Drive</h4>
-    <p>フロー A を複製し、トリガーのフォルダーを「送信済みアイテム」に、JSON の <code>direction</code> を <code>"out"</code> に変え、除外の条件を削除します。</p>
-    <h4>フロー C: 過去6か月の書き出し（初期分析用・1回だけ）</h4>
-    <ol class="steps">
-      <li><b>手動トリガー</b><span class="d">入力: 開始日（6か月前の日付）、日数 180。変数 i（整数）＝0。</span></li>
-      <li><b>Do until: i が日数以上</b><span class="d">上限を「回数 400・タイムアウト PT6H」に広げます。中で変数 day ＝ <code>@{formatDateTime(addDays(triggerBody()?['date'], variables('i')), 'yyyy-MM-dd')}</code>。</span></li>
-      <li><b>メールの取得 (V3) を受信トレイと送信済みの2回</b><span class="d">上位: 25、検索クエリ: <code>received:@{variables('day')}</code>、添付を含める: いいえ。1日25通を超える日は一部だけになりますが、分類には十分です。</span></li>
-      <li><b>選択 → Drive に保存</b><span class="d">マップ: receivedAt, direction（"in"/"out"）, from, to, subject, preview（bodyPreview）, conversationId。受信と送信を <code>union()</code> でまとめ、<code>/秘書AI/00_inbox/bootstrap/@{variables('day')}.json</code> に保存。最後に i を1増やします。</span></li>
-      <li><b>Apps Script で bootstrapPrepare() を実行</b><span class="d">以後はルーチンが順に処理し、<code>_system/分類提案.md</code> とダッシュボードの「新しい案件の候補」に結果が出ます。</span></li>
+      <li><b>Apps Script を作ってウェブアプリとして公開する</b><span class="d">script.new にコード（1ファイル）・Dashboard.html・appsscript.json の3つを貼り、「自分のみ」でデプロイします。</span></li>
+      <li><b>Gemini の API キーを発行する</b><span class="d">Google AI Studio で発行します。</span></li>
+      <li><b>ダッシュボードで初期設定をする</b><span class="d">初回はダッシュボードに設定画面が出ます。氏名・業務用アドレス・Gemini キーを入れると、Drive のフォルダと定期処理が自動で作られます。スクリプトプロパティを手で入力する必要はありません。</span></li>
+      <li><b>解析ルーチンに Google Drive を接続して有効にする</b><span class="d">ルーチン「秘書AI 解析ルーチン」は作成済みです（毎日 6:49〜17:49 の毎時、Claude Sonnet 5）。コネクタの紐づけは claude.ai の画面でしかできないため、そこだけ操作が必要です。</span></li>
+      <li><b>Power Automate でフロー A（受信）と B（送信）を作る</b><span class="d">アクション名を英字（html2text・attachments_select・mail_json）に変えることで、日本語画面でも式がそのまま使えるようにしています。メルマガの除外は Claude が行うので、フローには入れていません。</span></li>
+      <li><b>テストメールで確認し、後日に過去6か月の初期分析</b><span class="d">初期分析は、フロー C で書き出したあと、ダッシュボードの「稼働状況」のボタンで始めます。</span></li>
     </ol>
   </div>
 </section>
