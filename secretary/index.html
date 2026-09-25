@@ -167,6 +167,7 @@ footer { border-top: 1px solid var(--line); padding-block: 30px 60px; color: var
         <tr><td>音声の文字起こし</td><td>Gemini API で自動化</td><td><span class="tag-ok">そのまま</span> Apps Script が Gemini で文字起こししてから解析キューに入れます。</td></tr>
         <tr><td>タスクの確定</td><td>すべて提案で止める</td><td><span class="tag-ok">そのまま</span> 自動採用はしません（<code>AUTO_ACCEPT_HIGH_CONFIDENCE: false</code>）。</td></tr>
         <tr><td>初期分析の期間</td><td>6か月</td><td><span class="tag-ok">そのまま</span> フロー C の日数を 180 にします。</td></tr>
+        <tr><td>実行間隔</td><td>7時〜18時の1時間おき</td><td><span class="tag-ok">反映</span> ルーチンは導入完了後に作成します。</td></tr>
         <tr><td>補足</td><td>API ではなくクラウドの Claude Code で解析</td><td><span class="tag-chg">変更</span> Claude API の呼び出しをすべて外し、Apps Script と Claude Code が Google Drive 上の「解析キュー」で受け渡す構成にしました（次節）。</td></tr>
       </tbody>
     </table></div>
@@ -188,7 +189,7 @@ footer { border-top: 1px solid var(--line); padding-block: 30px 60px; color: var
       <div class="node"><span class="tag">Google Drive</span><div class="t">01_解析キュー/jobs</div><div class="s">「秘書AI_JOB_待機_…」という Google ドキュメント</div></div>
     </div>
 
-    <div class="lane">解析と反映（ルーチンは2時間おき）</div>
+    <div class="lane">解析と反映（ルーチンは7〜18時の1時間おき）</div>
     <div class="flow">
       <div class="node"><span class="tag">Claude Code（Sonnet 5）</span><div class="t">解析ルーチン</div><div class="s">ジョブと添付を読み、手順書に沿って結果を作成。形式を検証してから保存</div></div>
       <div class="node"><span class="tag">Google Drive</span><div class="t">01_解析キュー/results</div><div class="s">「&lt;jobId&gt;.result.json」</div></div>
@@ -198,7 +199,7 @@ footer { border-top: 1px solid var(--line); padding-block: 30px 60px; color: var
     </div>
 
     <div class="note"><b>役割分担。</b>Apps Script はファイル操作・文字起こし・画面を、Claude Code は判断（分類・要約・タスク分解・カルテ作成）を担います。Claude Code 側の手順書は <code>secretary/agent/AGENT.md</code>、結果の形式は <code>secretary/agent/schemas.json</code> で、Claude Code は保存前に <code>validate.mjs</code> で形式を確かめます。</div>
-    <div class="note"><b>反映までの時間。</b>メール受信から最大でおよそ「ルーチンの間隔＋20分」です。2時間おきなら、朝8時に届いたメールは10時台に案件フォルダとダッシュボードに入ります。朝の「今日の段取り」は5時半にジョブを作り、6時台のルーチンで作成します。</div>
+    <div class="note"><b>反映までの時間。</b>メール受信から最大でおよそ「ルーチンの間隔＋20分」です。1時間おきなら、朝8時に届いたメールは9時台に案件フォルダとダッシュボードに入ります。18時以降に届いたメールは翌朝7時台に反映します。朝の「今日の段取り」は5時半にジョブを作り、7時台のルーチンで作成します（7時20分ごろに表示）。</div>
   </div>
 </section>
 
@@ -398,7 +399,7 @@ footer { border-top: 1px solid var(--line); padding-block: 30px 60px; color: var
     <h3>B. Claude Code 側（解析ルーチン）</h3>
     <ol class="steps">
       <li><b>Google Drive コネクタを接続する</b><span class="d">claude.ai の設定 → コネクタで Google Drive を、「秘書AI」フォルダがあるのと同じ Google アカウントで接続します（接続済みなら不要）。</span></li>
-      <li><b>ルーチンを作る</b><span class="d">このセッションで作成できます（依頼してください）。内容: 実行間隔 = 毎日6時〜20時の2時間おき（日本時間）、毎回新しいセッションで実行、コネクタ = Google Drive、モデル = Claude Sonnet 5、プロンプト = <code>secretary/agent/routine-prompt.txt</code>。</span></li>
+      <li><b>ルーチンを作る</b><span class="d">このセッションで作成できます（依頼してください）。内容: 実行間隔 = 毎日7時〜18時の1時間おき（日本時間）、毎回新しいセッションで実行、コネクタ = Google Drive、モデル = Claude Sonnet 5、プロンプト = <code>secretary/agent/routine-prompt.txt</code>。</span></li>
       <li><b>動作確認</b><span class="d">テストメールを1通流し、ジョブができたらルーチンを手動で1回実行します。<code>01_解析キュー/results</code> に結果ができ、10分以内に案件フォルダへ .md が入れば完了です。</span></li>
     </ol>
 
@@ -454,12 +455,12 @@ footer { border-top: 1px solid var(--line); padding-block: 30px 60px; color: var
     <div class="tbl"><table>
       <thead><tr><th>実行間隔の案</th><th>1日の実行回数</th><th>反映までの時間</th><th>向いている使い方</th></tr></thead>
       <tbody>
-        <tr><td>1時間おき（6〜20時）</td><td class="mono">15回</td><td>最大 約1時間20分</td><td>当日中の対応が多い。利用枠に余裕がある</td></tr>
-        <tr><td><b>2時間おき（6〜20時）・推奨</b></td><td class="mono">8回</td><td>最大 約2時間20分</td><td>朝・昼・夕に確認する使い方。利用枠とのバランスが良い</td></tr>
+        <tr><td><b>1時間おき（7〜18時）・採用</b></td><td class="mono">12回</td><td>最大 約1時間20分（夜間分は翌朝）</td><td>当日中の対応が多い現場向け</td></tr>
+        <tr><td>2時間おき（6〜20時）</td><td class="mono">8回</td><td>最大 約2時間20分</td><td>朝・昼・夕に確認する使い方。利用枠を抑えたいとき</td></tr>
         <tr><td>1日3回（6時・12時・17時）</td><td class="mono">3回</td><td>最大 半日</td><td>利用枠を節約したい。日次の整理が中心</td></tr>
       </tbody>
     </table></div>
-    <div class="note">1回の実行で扱うのは最大15件です。1日40通のメールなら2時間おきで収まります。ジョブがない回はすぐ終わるので、利用枠の消費はわずかです。利用枠に達したときは解析待ちが溜まるだけで、次の枠で順に処理されます（データは失われません）。</div>
+    <div class="note">1回の実行で扱うのは最大15件です。1日40通のメールなら1時間おきで十分に収まります。ジョブがない回はすぐ終わるので、利用枠の消費はわずかです。利用枠に達したときは解析待ちが溜まるだけで、次の枠で順に処理されます（データは失われません）。</div>
   </div>
 </section>
 
