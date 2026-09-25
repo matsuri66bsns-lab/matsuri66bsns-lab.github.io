@@ -1,74 +1,19 @@
 /**
- * 打合せ・協議記録の取り込み（00_inbox/records）
+ * 打合せ・協議記録（00_inbox/records）
+ *   prepareRecordJobs_  … 記録ごとに解析ジョブを作る（音声は先に Gemini で文字起こし）
+ *   applyRecordResult_  … Claude Code の結果から議事録 .md と db を更新する
  *
  * 投入できるもの:
- *   音声（m4a/mp3/wav/aac/ogg/flac）… GEMINI_API_KEY があれば自動文字起こし → 構造化
- *   テキスト・Markdown・Word・PDF     … そのまま構造化（手書きメモのスキャンPDFも可）
- *   写真（手書きメモ・ホワイトボード） … 画像として読み取り → 構造化
+ *   音声（m4a/mp3/wav/aac/ogg/flac）… GEMINI_API_KEY があれば自動で文字起こし
+ *     キーが無い場合は、同じファイル名の .txt（文字起こし）を一緒に入れる
+ *   テキスト・Markdown … ジョブに直接書き込む
+ *   PDF・Word・写真（手書きメモ・ホワイトボード）… Claude Code が read_file_content で読む
  *
  * ファイル名の先頭に [案件ID][種別] を付けると判定のヒントになる（ダッシュボードからの投稿は自動で付く）
- *   例: [P-2026-001][行政協議]2026-09-24_建築指導課 事前相談.m4a
+ *   例: [P-2026-001][行政協議・検査]2026-09-24_消防署 事前協議.m4a
  */
 
-function recordSystemPrompt_() {
-  const o = owner_();
-  return [
-    'あなたは' + (o.role || '建築・不動産分野の実務担当者') + 'である' + (o.name || '利用者') + 'さん（以下「本人」）の業務秘書です。',
-    '打合せ・協議の記録（音声の文字起こし、手書きメモ、議事メモ）を読み、正式な議事録として構造化し、本人のタスクを提案します。',
-    '',
-    '## 原則',
-    '- 記録にないことは書かない。聞き取れない・曖昧な箇所は notes に「要確認」として残す。',
-    '- 数値・寸法・条文・日付・固有名詞は原文どおり。',
-    '- 行政協議では、相手の指摘・要望と、その根拠（条例・条文・要綱・運用基準）、こちらの回答、対応の要否を必ず対応づける。',
-    '  「指導」「お願い」レベルか「法的に必須」かの温度感が読み取れれば basis に書く。',
-    '- 施主打合せでは、要望・決定事項・保留事項・コストや工程への影響を明確にする。',
-    '- 相手側の宿題は waiting_on_others、本人側の宿題は my_tasks に入れる。',
-    '',
-    '## タスク・期日の考え方',
-    '- 本人が行動すべきものだけを my_tasks にし、2〜6個のサブタスクに分解する（実行順・各30分〜2時間）。',
-    '- 次回打合せ日がある場合、その宿題は次回の前営業日を最終期日にする。',
-    '- 期限の定めがないものは5営業日以内を既定とし、due_basis に「既定」と書く。',
-    '- 期日は営業日カレンダーの営業日にし、今日より前にしない。',
-    '',
-    '## 案件の判定',
-    '- 案件一覧と照合して project_id を返す。一覧に無い物件の話なら "NEW"、案件に属さなければ "GENERAL"。',
-  ].join('\n');
-}
-
-function recordSchema_() {
-  return S_obj({
-    project_id: S_str('案件ID、または "NEW" / "GENERAL"'),
-    new_project: S_obj({
-      name: S_str('新規案件名（NEW 以外は ""）'), client: S_str('施主'), location: S_str('所在地'),
-      phase: S_str('フェーズ'), aliases: S_arr(S_str(''), '別名'),
-    }),
-    record_type: S_enum(CONFIG.RECORD_TYPES, '記録の種別'),
-    title: S_str('議事録タイトル（例: 建築指導課 事前相談（日影・壁面後退））'),
-    date: S_str('実施日 YYYY-MM-DD（不明なら ""）'),
-    time: S_str('時刻 HH:mm〜HH:mm（不明なら ""）'),
-    place: S_str('場所'),
-    counterpart: S_str('相手先（機関・部署、または施主名）'),
-    attendees: S_arr(S_obj({ name: S_str('氏名'), org: S_str('所属') }), '出席者'),
-    purpose: S_str('目的'),
-    summary: S_str('概要（3〜6文）'),
-    qa: S_arr(S_obj({
-      topic: S_str('論点'),
-      point: S_str('相手の指摘・質問・要望'),
-      response: S_str('こちらの回答・協議結果'),
-      basis: S_str('根拠（条文・要綱・基準・資料）や温度感'),
-      status: S_enum(['解決', '要対応', '継続協議', '参考'], '状態'),
-    }), '協議事項'),
-    decisions: S_arr(S_str(''), '決定・合意事項'),
-    open_issues: S_arr(S_str(''), '未解決・継続協議の事項'),
-    my_tasks: S_arr(taskSchema_(), '本人のタスク'),
-    waiting_on_others: waitingSchema_(),
-    next_meeting: S_obj({ date: S_str('次回日時（不明なら ""）'), agenda: S_str('次回の議題') }),
-    events: eventSchema_(),
-    notes: S_str('聞き取れなかった点・要確認事項'),
-  });
-}
-
-function processRecordsInbox_(deadline, touched) {
+function prepareRecordJobs_(deadline) {
   const inbox = folder_(PATHS.INBOX_RECORDS);
   const files = listFiles_(inbox).filter(f => !/\.transcript\.txt$/.test(f.getName()));
   let count = 0;
@@ -76,7 +21,7 @@ function processRecordsInbox_(deadline, touched) {
     if (Date.now() > deadline || count >= CONFIG.MAX_ITEMS_PER_RUN) break;
     if (Date.now() - file.getDateCreated().getTime() < 60 * 1000) continue; // アップロード途中の可能性
     try {
-      if (processOneRecord_(file, touched)) count++;
+      if (prepareOneRecord_(file)) count++;
     } catch (err) {
       withDb_(() => recordFailure_(file, err));
     }
@@ -84,43 +29,70 @@ function processRecordsInbox_(deadline, touched) {
   return count;
 }
 
-/** @return {boolean} 処理したら true（文字起こし待ちなら false） */
-function processOneRecord_(file, touched) {
+/** @return {boolean} ジョブを作ったら true（文字起こし待ちなら false） */
+function prepareOneRecord_(file) {
   const name = file.getName();
   const hint = parseRecordHint_(name);
   const kind = kindOf_(name);
-  const blocks = [];
+  const inbox = folder_(PATHS.INBOX_RECORDS);
+  const baseName = name.replace(/\.[^.]+$/, '');
   let transcriptFile = null;
+  let content;
 
   if (kind === 'audio') {
-    if (!prop_('GEMINI_API_KEY', '')) return false; // 手動の文字起こし投入を待つ
-    const text = transcribeAudio_(file);
-    transcriptFile = folder_(PATHS.INBOX_RECORDS).createFile(name.replace(/\.[^.]+$/, '') + '.transcript.txt', text, 'text/plain');
-    blocks.push({ type: 'text', text: '【音声の文字起こし】\n' + clip_(text) });
+    // 同名の文字起こしテキストがあれば、そちらの処理で一緒に扱う
+    const hasText = listFiles_(inbox).some(f => f.getId() !== file.getId() && f.getName().replace(/\.[^.]+$/, '') === baseName && kindOf_(f.getName()) === 'text');
+    if (hasText || !prop_('GEMINI_API_KEY', '')) return false;
+    const transcript = transcribeAudio_(file);
+    transcriptFile = inbox.createFile(baseName + '.transcript.txt', transcript, 'text/plain');
+    content = '読み方: 下のテキスト（音声を Gemini で文字起こししたもの）\n~~~\n' + clip_(transcript) + '\n~~~';
+  } else if (kind === 'text') {
+    content = '読み方: 下のテキスト\n~~~\n' + clip_(decodeText_(file.getBlob())) + '\n~~~';
+  } else if (READABLE_MIME[ext_(name)]) {
+    fixMime_(file, READABLE_MIME[ext_(name)]);
+    content = '読み方: read_file_content（fileId: ' + file.getId() + '）';
+  } else if (kind === 'excel-old' || kind === 'ppt-old' || kind === 'text-convert') {
+    content = '読み方: 下のテキスト（Apps Script で変換）\n~~~\n' + clip_(officeToText_(file.getBlob(), kind)) + '\n~~~';
   } else {
-    const parts = attachmentParts_([{ name: name, blob: file.getBlob() }]);
-    parts.blocks.forEach(b => blocks.push(b));
+    throw new Error('記録として読めない形式です: ' + name);
   }
 
-  const projects = loadProjects_();
+  const siblings = kind === 'audio' ? [] : listFiles_(inbox)
+    .filter(f => f.getId() !== file.getId() && f.getName().replace(/\.[^.]+$/, '') === baseName && kindOf_(f.getName()) === 'audio');
+
   const text = [
-    '## 今日', ymdJa_(new Date()),
-    '', '## 営業日カレンダー（今日から3週間）', calendarContext_(),
-    '', '## 投入情報',
+    commonJobContext_(loadProjects_()),
+    '## 投入情報',
     'ファイル名: ' + name,
     '指定された案件: ' + (hint.projectId || 'なし'),
     '指定された種別: ' + (hint.type || 'なし'),
     'ファイル作成日: ' + fmt_(file.getDateCreated()),
-    '', '上の記録を議事録として構造化してください。',
+    '',
+    '## 記録の本体',
+    content,
   ].join('\n');
 
-  const r = callClaude_({
-    system: recordSystemPrompt_(),
-    context: '## 案件一覧\n' + projectsContext_(projects),
-    content: blocks.concat([{ type: 'text', text: text }]),
-    schema: recordSchema_(),
-    effort: CONFIG.EFFORT_RECORD,
+  const jobId = 'record-' + fmt_(new Date(), 'yyyyMMdd-HHmmss') + '_' + Utilities.getUuid().slice(0, 6);
+  const docId = createJob_('record', jobId, text);
+  const queued = folder_(PATHS.QUEUED + '/records');
+  file.moveTo(queued);
+  if (transcriptFile) transcriptFile.moveTo(queued);
+  siblings.forEach(f => f.moveTo(queued));
+  withDb_(db => {
+    db.jobs[jobId] = {
+      type: 'record', docId: docId, createdAt: new Date().toISOString(),
+      src: { fileId: file.getId(), transcriptId: transcriptFile ? transcriptFile.getId() : '', siblingIds: siblings.map(f => f.getId()), hint: hint },
+    };
   });
+  return true;
+}
+
+function applyRecordResult_(job, r, touched) {
+  const file = DriveApp.getFileById(job.src.fileId);
+  const transcriptFile = job.src.transcriptId ? DriveApp.getFileById(job.src.transcriptId) : null;
+  const siblings = (job.src.siblingIds || []).map(id => DriveApp.getFileById(id));
+  const hint = job.src.hint || {};
+  const projects = loadProjects_();
 
   let projectId = hint.projectId && projects.find(p => p.id === hint.projectId) ? hint.projectId : r.project_id;
   if (projectId === 'NEW' && r.new_project.name) projectId = proposeProject_(r.new_project.name, r.new_project).id;
@@ -131,22 +103,14 @@ function processOneRecord_(file, touched) {
   const recId = newId_('r');
   const type = hint.type || r.record_type;
 
-  // 原本を案件フォルダへ。手動で文字起こしを投入した場合、同じ名前の音声も一緒に移す
   const origFolder = folder_(dest + '/記録/原本');
-  const baseName = name.replace(/\.[^.]+$/, '');
-  const siblings = kind === 'audio' ? [] : listFiles_(folder_(PATHS.INBOX_RECORDS))
-    .filter(f => f.getId() !== file.getId() && f.getName().replace(/\.[^.]+$/, '') === baseName && kindOf_(f.getName()) === 'audio');
   file.moveTo(origFolder);
   if (transcriptFile) transcriptFile.moveTo(origFolder);
   siblings.forEach(f => f.moveTo(origFolder));
 
   const source = { kind: 'record', id: recId, title: r.title };
   const tasks = normalizeTasks_(r.my_tasks, projectId, source);
-  const waits = (r.waiting_on_others || []).map(w => ({
-    id: newId_('w'), title: w.who + 'から: ' + w.what, projectId: projectId, owner: 'other', who: w.who,
-    status: 'waiting', priority: 'mid', due: w.due || '', dueBasis: '', estimateMin: 0, subtasks: [], source: source,
-    createdAt: new Date().toISOString(),
-  }));
+  const waits = waitsFromResult_(r.waiting_on_others, projectId, source);
 
   const md = renderRecordMd_(r, { projectId, type, date, file, transcriptFile, siblings, tasks, waits, projectLabel: projectLabel_(projectId, allProjects) });
   const out = folder_(dest + '/記録').createFile(date + '_' + type + '_' + safeName_(r.title, 40) + '.md', md, 'text/markdown');
@@ -164,10 +128,9 @@ function processOneRecord_(file, touched) {
     if (r.next_meeting.date) addEvents_(db, [{ title: '次回: ' + r.title, start: r.next_meeting.date, end: '', place: '' }], projectId, source);
   });
   touched[projectId] = true;
-  return true;
 }
 
-/** "[P-2026-001][行政協議]2026-09-24_タイトル.m4a" から手がかりを取り出す */
+/** "[P-2026-001][行政協議・検査]2026-09-24_タイトル.m4a" から手がかりを取り出す */
 function parseRecordHint_(name) {
   const h = { projectId: '', type: '', date: '' };
   const tags = name.match(/\[([^\]]+)\]/g) || [];

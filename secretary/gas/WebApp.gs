@@ -18,7 +18,14 @@ function apiGetDb() {
   const db = loadDb_();
   const copy = Object.assign({}, db, { log: db.log.slice(-30) });
   copy.owner = owner_();
-  copy.config = { model: CONFIG.MODEL, categories: CONFIG.CATEGORIES, recordTypes: CONFIG.RECORD_TYPES, phases: CONFIG.PHASES };
+  copy.config = { engine: 'Claude Code（クラウド）', categories: CONFIG.CATEGORIES, recordTypes: CONFIG.RECORD_TYPES, phases: CONFIG.PHASES };
+  const jobs = Object.keys(db.jobs || {}).map(k => db.jobs[k]);
+  copy.queue = Object.assign({}, db.queue, {
+    pending: jobs.length,
+    byType: jobs.reduce((m, j) => { m[j.type] = (m[j.type] || 0) + 1; return m; }, {}),
+    oldest: jobs.map(j => j.createdAt).sort()[0] || '',
+  });
+  delete copy.jobs;
   return JSON.stringify(copy);
 }
 
@@ -90,23 +97,21 @@ function apiBulkTasks(ids, status) {
   }));
 }
 
-/** テキストのメモを記録として投稿し、その場で構造化する */
+/** テキストのメモを記録として投稿し、すぐに解析ジョブにする（議事録化は次回の Claude Code 実行時） */
 function apiSubmitMemo(input) {
   const name = recordFileName_(input) + '.md';
   const body = '# ' + (input.title || 'メモ') + '\n\n' + (input.date ? '実施日: ' + input.date + '\n\n' : '') + input.text;
   const file = folder_(PATHS.INBOX_RECORDS).createFile(name, body, 'text/markdown');
-  const touched = {};
-  processOneRecord_(file, touched);
-  withDb_(db => { writeTasksMd_(db, touched); syncProjectsToDb_(db); });
+  prepareOneRecord_(file);
   return apiGetDb();
 }
 
-/** 音声・写真・PDF などを記録の投入口に保存（処理は次回の定期実行で行う） */
+/** 音声・写真・PDF などを記録の投入口に保存（10分以内に解析ジョブになる） */
 function apiUploadRecord(input) {
   const ext = (input.name.match(/\.[^.]+$/) || [''])[0];
   const blob = Utilities.newBlob(Utilities.base64Decode(input.base64), input.mimeType || 'application/octet-stream', recordFileName_(input) + ext);
   folder_(PATHS.INBOX_RECORDS).createFile(blob);
-  return '受け付けました。10分以内に議事録化されます。';
+  return '受け付けました。次回の解析で議事録になります。';
 }
 
 function recordFileName_(input) {
@@ -132,7 +137,7 @@ function apiUpsertProject(input) {
   return apiGetDb();
 }
 
-/** 手動で今すぐ処理を回す */
+/** 手動で今すぐ処理を回す（結果の反映とジョブ作成。解析そのものは Claude Code ルーチンが行う） */
 function apiRunNow() {
   tick();
   return apiGetDb();

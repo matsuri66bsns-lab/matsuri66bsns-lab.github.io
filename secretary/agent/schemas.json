@@ -1,0 +1,1147 @@
+{
+  "mail": {
+    "type": "object",
+    "properties": {
+      "is_noise": {
+        "type": "boolean",
+        "description": "メルマガ・広告等の一斉配信なら true"
+      },
+      "noise_reason": {
+        "type": "string",
+        "description": "is_noise の判断理由（短く）"
+      },
+      "project_id": {
+        "type": "string",
+        "description": "案件ID、または \"NEW\" / \"GENERAL\""
+      },
+      "project_confidence": {
+        "type": "string",
+        "enum": [
+          "high",
+          "mid",
+          "low"
+        ],
+        "description": "案件判定の確からしさ"
+      },
+      "new_project": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "新規案件名（project_id が NEW 以外は \"\"）。工事名の形で（例: (仮称)桜台三丁目共同住宅新築工事）"
+          },
+          "client": {
+            "type": "string",
+            "description": "発注者"
+          },
+          "location": {
+            "type": "string",
+            "description": "工事場所"
+          },
+          "phase": {
+            "type": "string",
+            "description": "フェーズ"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": ""
+            },
+            "description": "略称・工事番号・表記ゆれ"
+          }
+        },
+        "required": [
+          "name",
+          "client",
+          "location",
+          "phase",
+          "aliases"
+        ],
+        "additionalProperties": false
+      },
+      "category": {
+        "type": "string",
+        "enum": [
+          "発注者対応",
+          "設計・監理者対応",
+          "行政・官公庁",
+          "協力会社・発注",
+          "工程・現場調整",
+          "安全・品質",
+          "近隣対応",
+          "見積・契約・出来高",
+          "社内",
+          "情報共有",
+          "その他"
+        ],
+        "description": "主な種別"
+      },
+      "phase": {
+        "type": "string",
+        "enum": [
+          "見積・受注",
+          "着工準備",
+          "仮設・土工事",
+          "躯体工事",
+          "仕上・設備工事",
+          "外構工事",
+          "検査・竣工",
+          "引渡し・アフター",
+          "該当なし"
+        ],
+        "description": "このメールが属する工事フェーズ"
+      },
+      "title": {
+        "type": "string",
+        "description": "記録用タイトル（40字以内。件名より内容が分かる表現に）"
+      },
+      "summary": {
+        "type": "string",
+        "description": "要約（2〜5文）"
+      },
+      "key_points": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": ""
+        },
+        "description": "要点（数値・日付・条件・数量を含む）"
+      },
+      "decisions": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": ""
+        },
+        "description": "このメールで決定・合意・承認された事項"
+      },
+      "open_issues": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": ""
+        },
+        "description": "未解決の懸案・論点"
+      },
+      "reply_needed": {
+        "type": "boolean",
+        "description": "本人が返信すべきか"
+      },
+      "my_tasks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "動詞で終わる具体的なタスク名（例: 3階スラブ配筋検査の是正3件を是正し、写真を添えて監理者へ報告する）"
+            },
+            "why": {
+              "type": "string",
+              "description": "必要な理由・依頼元・根拠となる本文の要約（1〜2文）"
+            },
+            "priority": {
+              "type": "string",
+              "enum": [
+                "high",
+                "mid",
+                "low"
+              ],
+              "description": "優先度"
+            },
+            "due": {
+              "type": "string",
+              "format": "date-or-empty",
+              "description": "期日 YYYY-MM-DD"
+            },
+            "due_basis": {
+              "type": "string",
+              "description": "期日の根拠。例:「本文に10/3(金)までと明記」「至急→翌営業日」「既定: 回答は2営業日以内」"
+            },
+            "estimate_min": {
+              "type": "integer",
+              "description": "全体の想定作業時間（分）"
+            },
+            "confidence": {
+              "type": "string",
+              "enum": [
+                "high",
+                "mid",
+                "low"
+              ],
+              "description": "本人がやるべきタスクだという確からしさ"
+            },
+            "subtasks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "サブタスク（1つ30分〜2時間程度）"
+                  },
+                  "due": {
+                    "type": "string",
+                    "format": "date-or-empty",
+                    "description": "YYYY-MM-DD。最終期日から逆算"
+                  },
+                  "estimate_min": {
+                    "type": "integer",
+                    "description": "想定作業時間（分）"
+                  }
+                },
+                "required": [
+                  "title",
+                  "due",
+                  "estimate_min"
+                ],
+                "additionalProperties": false
+              },
+              "description": "2〜6個に分解。実行順"
+            }
+          },
+          "required": [
+            "title",
+            "why",
+            "priority",
+            "due",
+            "due_basis",
+            "estimate_min",
+            "confidence",
+            "subtasks"
+          ],
+          "additionalProperties": false
+        },
+        "description": "本人がやるべきタスク"
+      },
+      "waiting_on_others": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "who": {
+              "type": "string",
+              "description": "ボールを持っている相手（会社名・氏名）"
+            },
+            "what": {
+              "type": "string",
+              "description": "相手から返ってくるべきもの"
+            },
+            "due": {
+              "type": "string",
+              "format": "date-or-empty",
+              "description": "回答期限 YYYY-MM-DD（不明なら \"\"）"
+            }
+          },
+          "required": [
+            "who",
+            "what",
+            "due"
+          ],
+          "additionalProperties": false
+        },
+        "description": "相手待ち（本人側が依頼し、返答・提出を待っている事項）"
+      },
+      "completed_task_ids": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": ""
+        },
+        "description": "完了したと判断できる進行中タスクのID"
+      },
+      "events": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "予定名（検査・打合せ・搬入・作業など）"
+            },
+            "start": {
+              "type": "string",
+              "description": "開始 YYYY-MM-DDTHH:mm（時刻不明なら YYYY-MM-DD）"
+            },
+            "end": {
+              "type": "string",
+              "description": "終了（不明なら \"\"）"
+            },
+            "place": {
+              "type": "string",
+              "description": "場所・会議URL（不明なら \"\"）"
+            }
+          },
+          "required": [
+            "title",
+            "start",
+            "end",
+            "place"
+          ],
+          "additionalProperties": false
+        },
+        "description": "日程が確定または提案されている予定"
+      },
+      "attachments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "ファイル名（ジョブに記載されたとおり）"
+            },
+            "doc_type": {
+              "type": "string",
+              "enum": [
+                "図面・施工図",
+                "質疑・回答書",
+                "行政文書",
+                "見積書",
+                "注文書・契約書",
+                "請求・出来高",
+                "議事録",
+                "工程表",
+                "安全書類",
+                "検査・品質記録",
+                "仕様書・資料",
+                "写真",
+                "その他"
+              ],
+              "description": "種類"
+            },
+            "summary": {
+              "type": "string",
+              "description": "内容の要約（1〜3文）"
+            },
+            "drawing_no": {
+              "type": "string",
+              "description": "図番（なければ \"\"）"
+            },
+            "revision": {
+              "type": "string",
+              "description": "版・改訂記号・日付（なければ \"\"）"
+            },
+            "key_values": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "description": "項目"
+                  },
+                  "value": {
+                    "type": "string",
+                    "description": "値"
+                  }
+                },
+                "required": [
+                  "label",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              "description": "金額・数量・期限などの重要値"
+            }
+          },
+          "required": [
+            "name",
+            "doc_type",
+            "summary",
+            "drawing_no",
+            "revision",
+            "key_values"
+          ],
+          "additionalProperties": false
+        },
+        "description": "添付ごとの解析結果"
+      },
+      "people": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "氏名"
+            },
+            "org": {
+              "type": "string",
+              "description": "所属"
+            },
+            "role": {
+              "type": "string",
+              "description": "役割・立場"
+            },
+            "email": {
+              "type": "string",
+              "description": "メール"
+            }
+          },
+          "required": [
+            "name",
+            "org",
+            "role",
+            "email"
+          ],
+          "additionalProperties": false
+        },
+        "description": "登場した関係者"
+      }
+    },
+    "required": [
+      "is_noise",
+      "noise_reason",
+      "project_id",
+      "project_confidence",
+      "new_project",
+      "category",
+      "phase",
+      "title",
+      "summary",
+      "key_points",
+      "decisions",
+      "open_issues",
+      "reply_needed",
+      "my_tasks",
+      "waiting_on_others",
+      "completed_task_ids",
+      "events",
+      "attachments",
+      "people"
+    ],
+    "additionalProperties": false
+  },
+  "record": {
+    "type": "object",
+    "properties": {
+      "project_id": {
+        "type": "string",
+        "description": "案件ID、または \"NEW\" / \"GENERAL\""
+      },
+      "new_project": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "新規案件名（project_id が NEW 以外は \"\"）。工事名の形で（例: (仮称)桜台三丁目共同住宅新築工事）"
+          },
+          "client": {
+            "type": "string",
+            "description": "発注者"
+          },
+          "location": {
+            "type": "string",
+            "description": "工事場所"
+          },
+          "phase": {
+            "type": "string",
+            "description": "フェーズ"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": ""
+            },
+            "description": "略称・工事番号・表記ゆれ"
+          }
+        },
+        "required": [
+          "name",
+          "client",
+          "location",
+          "phase",
+          "aliases"
+        ],
+        "additionalProperties": false
+      },
+      "record_type": {
+        "type": "string",
+        "enum": [
+          "発注者打合せ",
+          "設計定例",
+          "行政協議・検査",
+          "工程会議・職長会",
+          "現場確認・検査",
+          "近隣説明",
+          "社内会議",
+          "電話メモ",
+          "その他"
+        ],
+        "description": "記録の種別"
+      },
+      "title": {
+        "type": "string",
+        "description": "議事録タイトル（例: 消防署 中間検査前協議（避難器具・誘導灯））"
+      },
+      "date": {
+        "type": "string",
+        "format": "date-or-empty",
+        "description": "実施日 YYYY-MM-DD（不明なら \"\"）"
+      },
+      "time": {
+        "type": "string",
+        "description": "時刻 HH:mm〜HH:mm（不明なら \"\"）"
+      },
+      "place": {
+        "type": "string",
+        "description": "場所"
+      },
+      "counterpart": {
+        "type": "string",
+        "description": "相手先（機関・部署、発注者、監理者、協力会社など）"
+      },
+      "attendees": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "氏名"
+            },
+            "org": {
+              "type": "string",
+              "description": "所属"
+            }
+          },
+          "required": [
+            "name",
+            "org"
+          ],
+          "additionalProperties": false
+        },
+        "description": "出席者"
+      },
+      "purpose": {
+        "type": "string",
+        "description": "目的"
+      },
+      "summary": {
+        "type": "string",
+        "description": "概要（3〜6文）"
+      },
+      "qa": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "topic": {
+              "type": "string",
+              "description": "論点"
+            },
+            "point": {
+              "type": "string",
+              "description": "相手の指摘・質問・要望"
+            },
+            "response": {
+              "type": "string",
+              "description": "こちらの回答・協議結果"
+            },
+            "basis": {
+              "type": "string",
+              "description": "根拠（法令・条例・仕様書・図面・基準）や温度感"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "解決",
+                "要対応",
+                "継続協議",
+                "参考"
+              ],
+              "description": "状態"
+            }
+          },
+          "required": [
+            "topic",
+            "point",
+            "response",
+            "basis",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        "description": "協議事項・指摘事項"
+      },
+      "decisions": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": ""
+        },
+        "description": "決定・合意事項"
+      },
+      "open_issues": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": ""
+        },
+        "description": "未解決・継続協議の事項"
+      },
+      "my_tasks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "動詞で終わる具体的なタスク名（例: 3階スラブ配筋検査の是正3件を是正し、写真を添えて監理者へ報告する）"
+            },
+            "why": {
+              "type": "string",
+              "description": "必要な理由・依頼元・根拠となる本文の要約（1〜2文）"
+            },
+            "priority": {
+              "type": "string",
+              "enum": [
+                "high",
+                "mid",
+                "low"
+              ],
+              "description": "優先度"
+            },
+            "due": {
+              "type": "string",
+              "format": "date-or-empty",
+              "description": "期日 YYYY-MM-DD"
+            },
+            "due_basis": {
+              "type": "string",
+              "description": "期日の根拠。例:「本文に10/3(金)までと明記」「至急→翌営業日」「既定: 回答は2営業日以内」"
+            },
+            "estimate_min": {
+              "type": "integer",
+              "description": "全体の想定作業時間（分）"
+            },
+            "confidence": {
+              "type": "string",
+              "enum": [
+                "high",
+                "mid",
+                "low"
+              ],
+              "description": "本人がやるべきタスクだという確からしさ"
+            },
+            "subtasks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "サブタスク（1つ30分〜2時間程度）"
+                  },
+                  "due": {
+                    "type": "string",
+                    "format": "date-or-empty",
+                    "description": "YYYY-MM-DD。最終期日から逆算"
+                  },
+                  "estimate_min": {
+                    "type": "integer",
+                    "description": "想定作業時間（分）"
+                  }
+                },
+                "required": [
+                  "title",
+                  "due",
+                  "estimate_min"
+                ],
+                "additionalProperties": false
+              },
+              "description": "2〜6個に分解。実行順"
+            }
+          },
+          "required": [
+            "title",
+            "why",
+            "priority",
+            "due",
+            "due_basis",
+            "estimate_min",
+            "confidence",
+            "subtasks"
+          ],
+          "additionalProperties": false
+        },
+        "description": "本人のタスク"
+      },
+      "waiting_on_others": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "who": {
+              "type": "string",
+              "description": "ボールを持っている相手（会社名・氏名）"
+            },
+            "what": {
+              "type": "string",
+              "description": "相手から返ってくるべきもの"
+            },
+            "due": {
+              "type": "string",
+              "format": "date-or-empty",
+              "description": "回答期限 YYYY-MM-DD（不明なら \"\"）"
+            }
+          },
+          "required": [
+            "who",
+            "what",
+            "due"
+          ],
+          "additionalProperties": false
+        },
+        "description": "相手待ち（本人側が依頼し、返答・提出を待っている事項）"
+      },
+      "next_meeting": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "次回日時（不明なら \"\"）"
+          },
+          "agenda": {
+            "type": "string",
+            "description": "次回の議題"
+          }
+        },
+        "required": [
+          "date",
+          "agenda"
+        ],
+        "additionalProperties": false
+      },
+      "events": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "予定名（検査・打合せ・搬入・作業など）"
+            },
+            "start": {
+              "type": "string",
+              "description": "開始 YYYY-MM-DDTHH:mm（時刻不明なら YYYY-MM-DD）"
+            },
+            "end": {
+              "type": "string",
+              "description": "終了（不明なら \"\"）"
+            },
+            "place": {
+              "type": "string",
+              "description": "場所・会議URL（不明なら \"\"）"
+            }
+          },
+          "required": [
+            "title",
+            "start",
+            "end",
+            "place"
+          ],
+          "additionalProperties": false
+        },
+        "description": "日程が確定または提案されている予定"
+      },
+      "notes": {
+        "type": "string",
+        "description": "聞き取れなかった点・要確認事項"
+      }
+    },
+    "required": [
+      "project_id",
+      "new_project",
+      "record_type",
+      "title",
+      "date",
+      "time",
+      "place",
+      "counterpart",
+      "attendees",
+      "purpose",
+      "summary",
+      "qa",
+      "decisions",
+      "open_issues",
+      "my_tasks",
+      "waiting_on_others",
+      "next_meeting",
+      "events",
+      "notes"
+    ],
+    "additionalProperties": false
+  },
+  "daily": {
+    "type": "object",
+    "properties": {
+      "overviews": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "type": "string",
+              "description": "案件ID"
+            },
+            "markdown": {
+              "type": "string",
+              "description": "案件カルテ本文（Markdown）"
+            }
+          },
+          "required": [
+            "project_id",
+            "markdown"
+          ],
+          "additionalProperties": false
+        },
+        "description": "ジョブに含まれる案件ごとのカルテ"
+      },
+      "brief_markdown": {
+        "type": "string",
+        "description": "今日の段取り（Markdown）"
+      }
+    },
+    "required": [
+      "overviews",
+      "brief_markdown"
+    ],
+    "additionalProperties": false
+  },
+  "bootstrap_chunk": {
+    "type": "object",
+    "properties": {
+      "projects": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "案件名（工事名）"
+            },
+            "aliases": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": ""
+              },
+              "description": "件名に現れる略称・工事番号・表記ゆれ"
+            },
+            "client": {
+              "type": "string",
+              "description": "発注者（推定可）"
+            },
+            "location": {
+              "type": "string",
+              "description": "工事場所（分かれば）"
+            },
+            "domains": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": ""
+              },
+              "description": "関係者のメールドメイン"
+            },
+            "mail_count": {
+              "type": "integer",
+              "description": "該当メール数"
+            },
+            "first_date": {
+              "type": "string",
+              "description": "最初の日付"
+            },
+            "last_date": {
+              "type": "string",
+              "description": "最後の日付"
+            },
+            "main_categories": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "発注者対応",
+                  "設計・監理者対応",
+                  "行政・官公庁",
+                  "協力会社・発注",
+                  "工程・現場調整",
+                  "安全・品質",
+                  "近隣対応",
+                  "見積・契約・出来高",
+                  "社内",
+                  "情報共有",
+                  "その他"
+                ],
+                "description": ""
+              },
+              "description": "主な種別"
+            },
+            "phase_guess": {
+              "type": "string",
+              "description": "現在のフェーズの推定"
+            }
+          },
+          "required": [
+            "name",
+            "aliases",
+            "client",
+            "location",
+            "domains",
+            "mail_count",
+            "first_date",
+            "last_date",
+            "main_categories",
+            "phase_guess"
+          ],
+          "additionalProperties": false
+        },
+        "description": "案件（特定の工事）ごとのまとまり"
+      },
+      "general_topics": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "topic": {
+              "type": "string",
+              "description": "話題"
+            },
+            "mail_count": {
+              "type": "integer",
+              "description": "件数"
+            },
+            "examples": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": ""
+              },
+              "description": "件名の例"
+            }
+          },
+          "required": [
+            "topic",
+            "mail_count",
+            "examples"
+          ],
+          "additionalProperties": false
+        },
+        "description": "案件に属さない話題"
+      },
+      "noise_senders": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sender": {
+              "type": "string",
+              "description": "アドレスまたはドメイン"
+            },
+            "reason": {
+              "type": "string",
+              "description": "理由"
+            },
+            "count": {
+              "type": "integer",
+              "description": "件数"
+            }
+          },
+          "required": [
+            "sender",
+            "reason",
+            "count"
+          ],
+          "additionalProperties": false
+        },
+        "description": "メルマガ・広告と思われる送信者"
+      }
+    },
+    "required": [
+      "projects",
+      "general_topics",
+      "noise_senders"
+    ],
+    "additionalProperties": false
+  },
+  "bootstrap_merge": {
+    "type": "object",
+    "properties": {
+      "projects": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "案件名（工事名）"
+            },
+            "aliases": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": ""
+              },
+              "description": "件名に現れる略称・工事番号・表記ゆれ"
+            },
+            "client": {
+              "type": "string",
+              "description": "発注者（推定可）"
+            },
+            "location": {
+              "type": "string",
+              "description": "工事場所（分かれば）"
+            },
+            "domains": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": ""
+              },
+              "description": "関係者のメールドメイン"
+            },
+            "mail_count": {
+              "type": "integer",
+              "description": "該当メール数"
+            },
+            "first_date": {
+              "type": "string",
+              "description": "最初の日付"
+            },
+            "last_date": {
+              "type": "string",
+              "description": "最後の日付"
+            },
+            "main_categories": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "発注者対応",
+                  "設計・監理者対応",
+                  "行政・官公庁",
+                  "協力会社・発注",
+                  "工程・現場調整",
+                  "安全・品質",
+                  "近隣対応",
+                  "見積・契約・出来高",
+                  "社内",
+                  "情報共有",
+                  "その他"
+                ],
+                "description": ""
+              },
+              "description": "主な種別"
+            },
+            "phase_guess": {
+              "type": "string",
+              "description": "現在のフェーズの推定"
+            }
+          },
+          "required": [
+            "name",
+            "aliases",
+            "client",
+            "location",
+            "domains",
+            "mail_count",
+            "first_date",
+            "last_date",
+            "main_categories",
+            "phase_guess"
+          ],
+          "additionalProperties": false
+        },
+        "description": "案件（特定の工事）ごとのまとまり"
+      },
+      "category_suggestions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string",
+              "description": "種別名"
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "keep",
+                "add",
+                "remove",
+                "rename"
+              ],
+              "description": "提案"
+            },
+            "reason": {
+              "type": "string",
+              "description": "理由"
+            }
+          },
+          "required": [
+            "category",
+            "action",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        "description": "既定の種別に対する見直し提案"
+      },
+      "noise_senders": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sender": {
+              "type": "string",
+              "description": "アドレスまたはドメイン"
+            },
+            "reason": {
+              "type": "string",
+              "description": "理由"
+            },
+            "count": {
+              "type": "integer",
+              "description": "件数"
+            }
+          },
+          "required": [
+            "sender",
+            "reason",
+            "count"
+          ],
+          "additionalProperties": false
+        },
+        "description": "メルマガ・広告と思われる送信者"
+      },
+      "report_md": {
+        "type": "string",
+        "description": "分類提案レポート（Markdown）"
+      }
+    },
+    "required": [
+      "projects",
+      "category_suggestions",
+      "noise_senders",
+      "report_md"
+    ],
+    "additionalProperties": false
+  },
+  "error": {
+    "type": "object",
+    "properties": {
+      "error": {
+        "type": "string",
+        "description": "処理できなかった理由"
+      }
+    },
+    "required": [
+      "error"
+    ],
+    "additionalProperties": false
+  }
+}

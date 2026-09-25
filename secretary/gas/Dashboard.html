@@ -210,6 +210,7 @@ a:hover { text-decoration: underline; }
 /* ブリーフ */
 .brief { border-radius: 20px; padding: 18px 22px; }
 .brief-h { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.page-sub svg.inl { width: 13px; height: 13px; vertical-align: -2px; color: var(--accent); }
 .brief-h svg { width: 17px; height: 17px; color: var(--accent); }
 .brief-h .meta { font-weight: 400; color: var(--ink-3); font-size: 12px; margin-left: auto; }
 .brief .md h2 { font-size: 13px; color: var(--ink-2); margin: 14px 0 4px; letter-spacing: 0.02em; }
@@ -503,8 +504,13 @@ const ICONS = {
 };
 const ic = (n, cls) => '<svg class="' + (cls || '') + '" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[n] + '</svg>';
 
-const CAT_COLOR = { '行政協議': 'blue', '施主対応': 'orange', '設計調整': 'purple', '工事・現場': 'brown', '見積・契約': 'yellow', '工程調整': 'pink', '社内': 'gray', '経理・請求': 'green', '情報共有': 'gray', 'その他': 'gray',
-  '施主打合せ': 'orange', '設計定例': 'purple', '現場確認': 'brown', '社内会議': 'gray', '電話メモ': 'green' };
+const CAT_COLOR = {
+  '発注者対応': 'orange', '設計・監理者対応': 'purple', '行政・官公庁': 'blue', '協力会社・発注': 'brown', '工程・現場調整': 'pink',
+  '安全・品質': 'red', '近隣対応': 'green', '見積・契約・出来高': 'yellow', '社内': 'gray', '情報共有': 'gray', 'その他': 'gray',
+  '発注者打合せ': 'orange', '設計定例': 'purple', '行政協議・検査': 'blue', '工程会議・職長会': 'pink', '現場確認・検査': 'brown',
+  '近隣説明': 'green', '社内会議': 'gray', '電話メモ': 'gray',
+};
+const DEFAULT_RECORD_TYPES = ['発注者打合せ', '設計定例', '行政協議・検査', '工程会議・職長会', '現場確認・検査', '近隣説明', '社内会議', '電話メモ', 'その他'];
 const PROJ_COLORS = ['#2F6BE4', '#E07A2E', '#1D8A5B', '#8B5CC7', '#C2417A', '#0E8FA3', '#9C7A1C', '#5B6472'];
 const STATUS = {
   proposed: { label: '提案中', color: 'var(--accent)' }, todo: { label: '未着手', color: 'var(--ink-3)' },
@@ -546,12 +552,10 @@ const API = {
   },
   async submitMemo(input) {
     if (IS_GAS) return JSON.parse(await gas('apiSubmitMemo', input));
-    const id = 'r-demo-' + Math.random().toString(36).slice(2, 7);
-    S.db.records.unshift({ id, date: input.date || D(0), type: input.type, title: input.title || 'メモ', projectId: input.projectId || 'GENERAL', counterpart: '', summary: input.text.slice(0, 120), fileId: id, qaOpen: 0 });
-    DEMO_DOCS[id] = '# ' + (input.title || 'メモ') + '\n\n（デモ表示）実際の環境では Claude が議事録に構造化し、タスクを提案します。\n\n' + input.text;
+    const q = S.db.queue; q.pending++; q.byType.record = (q.byType.record || 0) + 1;
     return S.db;
   },
-  async upload(input) { return IS_GAS ? gas('apiUploadRecord', input) : '（デモ）受け付けました。実際の環境では10分以内に議事録化されます。'; },
+  async upload(input) { return IS_GAS ? gas('apiUploadRecord', input) : '（デモ）受け付けました。実際の環境では次回の解析で議事録になります。'; },
   async upsertProject(p) {
     if (IS_GAS) return JSON.parse(await gas('apiUpsertProject', p));
     let x = S.db.projects.find(q => q.id === p.id);
@@ -578,6 +582,7 @@ function dueHtml(due) {
   if (n === 1) return '<span class="due">明日</span>';
   return '<span class="due">' + md_(due) + '</span>';
 }
+function isoLocal(s) { const d = new Date(s); if (isNaN(d)) return String(s || ''); return ymd(d) + 'T' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 function timeOf(s) { const m = String(s || '').match(/T(\d{2}:\d{2})/); return m ? m[1] : ''; }
 function proj(id) { return (S.db.projects || []).find(p => p.id === id); }
 function projColor(id) { const i = (S.db.projects || []).findIndex(p => p.id === id); return i < 0 ? 'var(--ink-3)' : PROJ_COLORS[i % PROJ_COLORS.length]; }
@@ -706,7 +711,7 @@ function renderShell() {
   if (S.view === 'project') { const p = proj(S.params.id); crumb = '案件 / <b>' + esc(p ? p.name : '') + '</b>'; }
   $('#topbar').innerHTML = '<div class="crumb">' + crumb + '</div><div class="spacer"></div>' +
     '<button class="btn search-btn" data-act="search">' + ic('search') + '<span class="lbl">検索</span><span class="kbd">⌘K</span></button>' +
-    '<button class="btn ghost hide-sm" data-act="run-now" title="投入口のメール・記録を今すぐ処理">' + ic('refresh') + '今すぐ処理</button>' +
+    '<button class="btn ghost hide-sm" data-act="run-now" title="Claude Code の解析結果を取り込み、新しいメール・記録を解析キューに入れます">' + ic('refresh') + '結果を取り込む</button>' +
     '<button class="btn primary" data-act="add-record">' + ic('plus') + '<span class="hide-sm">記録を追加</span></button>';
 
   const tabs = [['home', 'ホーム', 'home'], ['inbox', '提案', 'inbox'], ['tasks', 'タスク', 'task'], ['projects', '案件', 'folder'], ['records', '記録', 'mic']];
@@ -745,8 +750,10 @@ VIEWS.home = () => {
   const brief = S.db.brief;
   return '<div class="page">' +
     '<div class="page-head"><div class="page-sub">' + greet + (o.name ? '、' + esc(o.name) + ' さん' : '') + '</div>' +
-    '<h1 class="page-title">' + (d.getMonth() + 1) + '月' + d.getDate() + '日（' + WEEK[d.getDay()] + '）</h1></div>' +
-    (brief ? '<div class="brief glass"><div class="brief-h">' + ic('spark') + '今日の段取り<span class="meta">' + esc(md_(brief.date)) + ' 7:00 作成</span></div>' + renderMd(brief.md) + '</div>' : '') +
+    '<h1 class="page-title">' + (d.getMonth() + 1) + '月' + d.getDate() + '日（' + WEEK[d.getDay()] + '）</h1>' +
+    '<div class="page-sub" style="font-size:12.5px;margin-top:4px">' + ic('spark', 'inl') + ' 解析待ち <span class="num">' + ((S.db.queue || {}).pending || 0) + '</span> 件' +
+    ((S.db.queue || {}).lastResultAt ? ' ・ 最終解析 ' + md_(isoLocal(S.db.queue.lastResultAt)) + ' ' + timeOf(isoLocal(S.db.queue.lastResultAt)) : '') + '</div></div>' +
+    (brief ? '<div class="brief glass"><div class="brief-h">' + ic('spark') + '今日の段取り<span class="meta">' + esc(md_(brief.date)) + ' 作成</span></div>' + renderMd(brief.md) + '</div>' : '') +
     '<div class="stats">' +
       stat('期限切れ', over.length, '件', over.length ? 'is-red' : '', 'var(--red)', 'tasks') +
       stat('今日が期日', dueToday.length, '件', '', 'var(--amber)', 'tasks') +
@@ -938,7 +945,7 @@ VIEWS.records = () => {
   let list = S.db.records.slice().sort((a, b) => a.date < b.date ? 1 : -1);
   if (f.project) list = list.filter(r => r.projectId === f.project);
   if (f.type) list = list.filter(r => r.type === f.type);
-  const types = (S.db.config && S.db.config.recordTypes) || ['行政協議', '施主打合せ', '設計定例', '現場確認', '社内会議', '電話メモ', 'その他'];
+  const types = (S.db.config && S.db.config.recordTypes) || DEFAULT_RECORD_TYPES;
   return '<div class="page"><div class="page-head"><div class="page-icon" style="background:var(--t-blue-bg);color:var(--t-blue)">' + ic('mic') + '</div>' +
     '<h1 class="page-title">記録</h1><div class="page-sub">行政協議・施主打合せなどの記録です。音声・メモ・写真を投稿すると議事録に整えて、宿題をタスクとして提案します。</div></div>' +
     '<div class="filters">' + projectSelect('rec-filter-project', f.project) +
@@ -955,7 +962,7 @@ VIEWS.mails = () => {
   if (f.project) list = list.filter(m => m.projectId === f.project);
   if (f.category) list = list.filter(m => m.category === f.category);
   if (f.dir) list = list.filter(m => (m.direction || 'in') === f.dir);
-  const cats = (S.db.config && S.db.config.categories) || Object.keys(CAT_COLOR).slice(0, 10);
+  const cats = (S.db.config && S.db.config.categories) || Object.keys(CAT_COLOR).slice(0, 11);
   return '<div class="page"><div class="page-head"><div class="page-icon" style="background:var(--t-purple-bg);color:var(--t-purple)">' + ic('mail') + '</div>' +
     '<h1 class="page-title">メール</h1><div class="page-sub">解析済みのメールです（メルマガ等は除外済み）。スレッド単位の記録は案件フォルダの「メール」に保存されています。</div></div>' +
     '<div class="filters">' + projectSelect('mail-filter-project', f.project) +
@@ -965,27 +972,26 @@ VIEWS.mails = () => {
 };
 
 VIEWS.status = () => {
-  const usage = S.db.usage || {};
-  const months = Object.keys(usage).sort().slice(-6);
-  const max = Math.max(1, ...months.map(m => usage[m].usd));
+  const q = S.db.queue || {};
   const noise = Object.entries(S.db.noise || {}).sort((a, b) => b[1] - a[1]).slice(0, 20);
   const logs = (S.db.log || []).slice(-15).reverse();
+  const typeLabel = { mail: 'メール', record: '記録', daily: '日次', bootstrap_chunk: '初期分析', bootstrap_merge: '初期分析（統合）' };
   return '<div class="page"><div class="page-head"><div class="page-icon" style="background:var(--hover);color:var(--ink-2)">' + ic('gauge') + '</div>' +
-    '<h1 class="page-title">稼働状況</h1><div class="page-sub">処理件数・API の利用額・除外した配信元を確認できます。</div></div>' +
+    '<h1 class="page-title">稼働状況</h1><div class="page-sub">解析キューの状態、処理件数、除外した配信元を確認できます。解析はクラウドの Claude Code ルーチンが定期的に行います。</div></div>' +
     '<div class="stats">' +
+      '<div class="stat" style="cursor:default"><span class="lbl"><span class="sdot" style="background:var(--accent)"></span>解析待ち</span><span class="val">' + (q.pending || 0) + '<small>件</small></span></div>' +
+      '<div class="stat" style="cursor:default"><span class="lbl">最後に反映した解析</span><span class="val" style="font-size:16px;padding-top:6px">' + (q.lastResultAt ? md_(isoLocal(q.lastResultAt)) + ' ' + timeOf(isoLocal(q.lastResultAt)) : '—') + '</span></div>' +
       '<div class="stat" style="cursor:default"><span class="lbl">解析済みメール</span><span class="val">' + S.db.mails.length + '<small>通</small></span></div>' +
       '<div class="stat" style="cursor:default"><span class="lbl">記録</span><span class="val">' + S.db.records.length + '<small>件</small></span></div>' +
-      '<div class="stat" style="cursor:default"><span class="lbl">決定事項</span><span class="val">' + S.db.decisions.length + '<small>件</small></span></div>' +
-      '<div class="stat" style="cursor:default"><span class="lbl">使用モデル</span><span class="val" style="font-size:14px;padding-top:8px">' + esc((S.db.config && S.db.config.model) || '-') + '</span></div>' +
     '</div>' +
-    '<div class="grid-2"><div class="section"><div class="section-h"><h2>Claude API 利用額（月別・推計）</h2></div><div class="card pad"><div class="bars">' +
-      (months.length ? months.map(m => '<div class="bar-row" title="' + m + ': 入力 ' + usage[m].in.toLocaleString() + ' / 出力 ' + usage[m].out.toLocaleString() + ' トークン"><span class="num">' + m + '</span><div class="bar-track"><div class="bar-fill" style="width:' + (usage[m].usd / max * 100) + '%"></div></div><span class="num" style="text-align:right">$' + usage[m].usd.toFixed(2) + '</span></div>').join('') : '<div class="empty">まだ利用はありません。</div>') +
-    '</div></div></div>' +
-    '<div class="section"><div class="section-h"><h2>メルマガ判定した送信元</h2><span class="meta">Power Automate の除外リストに追加すると費用を抑えられます</span></div><div class="card rows">' +
+    '<div class="grid-2"><div class="section"><div class="section-h"><h2>解析待ちの内訳</h2><span class="meta">' + (q.oldest ? '最古 ' + md_(isoLocal(q.oldest)) + ' ' + timeOf(isoLocal(q.oldest)) : '') + '</span></div><div class="card rows">' +
+      (Object.keys(q.byType || {}).length ? Object.entries(q.byType).map(e => '<div class="row" style="cursor:default;grid-template-columns:minmax(0,1fr) auto"><div class="row-title">' + esc(typeLabel[e[0]] || e[0]) + '</div><span class="num">' + e[1] + '件</span></div>').join('') : '<div class="empty">解析待ちはありません。</div>') +
+      '</div><p class="page-sub" style="font-size:12.5px;margin:8px 4px">解析待ちが半日以上減らないときは、Claude Code のルーチンが止まっていないか確認してください。</p></div>' +
+    '<div class="section"><div class="section-h"><h2>メルマガ判定した送信元</h2><span class="meta">除外リストへの追加候補</span></div><div class="card rows">' +
       (noise.length ? noise.map(n => '<div class="row" style="cursor:default;grid-template-columns:minmax(0,1fr) auto"><div class="row-title mono" style="font-size:12.5px">' + esc(n[0]) + '</div><span class="num">' + n[1] + '件</span></div>').join('') : '<div class="empty">なし</div>') +
     '</div></div></div>' +
     '<div class="section"><div class="section-h"><h2>処理ログ</h2></div><div class="card rows">' +
-      (logs.length ? logs.map(l => '<div class="row" style="cursor:default;grid-template-columns:120px minmax(0,1fr)"><span class="num" style="color:var(--ink-3)">' + esc(l.at.slice(5, 16).replace('T', ' ')) + '</span><span style="color:' + (l.level === 'error' ? 'var(--red)' : 'inherit') + '">' + esc(l.msg) + '</span></div>').join('') : '<div class="empty">ログはありません。</div>') +
+      (logs.length ? logs.map(l => '<div class="row" style="cursor:default;grid-template-columns:120px minmax(0,1fr)"><span class="num" style="color:var(--ink-3)">' + esc(isoLocal(l.at).slice(5, 16).replace('T', ' ')) + '</span><span style="color:' + (l.level === 'error' ? 'var(--red)' : 'inherit') + '">' + esc(l.msg) + '</span></div>').join('') : '<div class="empty">ログはありません。</div>') +
     '</div></div></div>';
 };
 
@@ -997,7 +1003,7 @@ async function afterRender() {
       const slot = $('#doc-slot');
       try {
         const md = await API.projectDoc(S.params.id, tab);
-        if (slot && S.view === 'project') slot.innerHTML = md ? '<div class="card pad">' + renderMd(md) + '</div>' : '<div class="empty">' + ({ overview: 'カルテは毎朝7時に、動きのあった案件について作成・更新されます。', decisions: 'まだ決定事項はありません。', attachments: 'まだ添付はありません。' }[tab]) + '</div>';
+        if (slot && S.view === 'project') slot.innerHTML = md ? '<div class="card pad">' + renderMd(md) + '</div>' : '<div class="empty">' + ({ overview: 'カルテは毎朝、動きのあった案件について作成・更新されます。', decisions: 'まだ決定事項はありません。', attachments: 'まだ添付はありません。' }[tab]) + '</div>';
       } catch (e) { if (slot) slot.innerHTML = '<div class="empty">読み込めませんでした: ' + esc(e) + '</div>'; }
     }
   }
@@ -1117,7 +1123,7 @@ async function docDrawer(fileId, title) {
 }
 
 function recordModal() {
-  const types = (S.db.config && S.db.config.recordTypes) || ['行政協議', '施主打合せ', '設計定例', '現場確認', '社内会議', '電話メモ', 'その他'];
+  const types = (S.db.config && S.db.config.recordTypes) || DEFAULT_RECORD_TYPES;
   const pre = S.view === 'project' ? S.params.id : '';
   openModal('<h3>記録を追加</h3>' +
     '<div class="seg" style="margin-bottom:14px"><button class="on" data-act="rec-mode" data-mode="text">テキストで入力</button><button data-act="rec-mode" data-mode="file">ファイル（音声・写真・PDF）</button></div>' +
@@ -1128,7 +1134,7 @@ function recordModal() {
       '<label>タイトル<input class="inp" id="r-title" placeholder="例: 建築指導課 事前相談（日影・壁面後退）"></label>' +
       '<label id="r-text-wrap">メモ・文字起こし<textarea class="inp" id="r-text" placeholder="箇条書きの走り書きで構いません。相手・指摘・回答・宿題が分かるように書くと精度が上がります。"></textarea></label>' +
       '<div id="r-file-wrap" hidden><div class="dropzone" id="dz">ここにファイルをドロップ、またはクリックして選択<br><span style="font-size:12px;color:var(--ink-3)">m4a / mp3 / wav（音声）・jpg / png（手書きメモ）・pdf / docx</span><input type="file" id="r-file" hidden accept="audio/*,image/*,.pdf,.doc,.docx,.txt,.md"></div><div id="r-file-name" class="page-sub"></div></div>' +
-      '<div class="actions"><button class="btn primary" data-act="submit-record">登録して議事録にする</button><button class="btn ghost" data-act="close">キャンセル</button></div>' +
+      '<div class="actions"><button class="btn primary" data-act="submit-record">登録する</button><span class="page-sub" style="font-size:12.5px;align-self:center">次回の解析（Claude Code）で議事録になります</span><button class="btn ghost" data-act="close">キャンセル</button></div>' +
     '</div>');
   const dz = $('#dz'), fi = $('#r-file');
   dz.addEventListener('click', () => fi.click());
@@ -1141,7 +1147,7 @@ function recordModal() {
 
 function projectModal(id) {
   const p = id ? proj(id) : { name: '', status: '進行中', phase: '', client: '', location: '', aliases: [], domains: [] };
-  const phases = (S.db.config && S.db.config.phases) || ['企画', '基本設計', '実施設計', '確認申請', '施工', '竣工・引渡', 'アフター'];
+  const phases = (S.db.config && S.db.config.phases) || ['見積・受注', '着工準備', '仮設・土工事', '躯体工事', '仕上・設備工事', '外構工事', '検査・竣工', '引渡し・アフター'];
   openModal('<h3>' + (id ? '案件情報を編集' : '案件を追加') + '</h3><div class="form">' +
     '<label>案件名<input class="inp" id="p-name" value="' + esc(p.name) + '"></label>' +
     '<div class="two"><label>状態<select class="sel" id="p-status">' + ['進行中', '提案', '保留', '完了'].map(s => '<option' + (p.status === s ? ' selected' : '') + '>' + s + '</option>').join('') + '</select></label>' +
@@ -1258,16 +1264,16 @@ document.addEventListener('click', async e => {
       const base = { type: $('#r-type').value, date: $('#r-date').value, projectId: $('#r-proj').value || 'GENERAL', title: $('#r-title').value.trim() };
       if (recordModal.mode === 'text') {
         const text = $('#r-text').value.trim(); if (!text) { toast('メモを入力してください'); return; }
-        el.disabled = true; el.textContent = '議事録にしています…（1分ほど）';
-        try { S.db = await API.submitMemo(Object.assign(base, { text })); closeOverlay(); go('records'); toast('記録を追加しました'); }
-        catch (err) { el.disabled = false; el.textContent = '登録して議事録にする'; toast('エラー: ' + err); }
+        el.disabled = true; el.textContent = '登録しています…';
+        try { S.db = await API.submitMemo(Object.assign(base, { text })); closeOverlay(); go('records'); toast('受け付けました。次回の解析で議事録になります'); }
+        catch (err) { el.disabled = false; el.textContent = '登録する'; toast('エラー: ' + err); }
       } else {
         const f = recordModal.file; if (!f) { toast('ファイルを選んでください'); return; }
         if (f.size > 45 * 1024 * 1024) { toast('45MB を超えるファイルは Google Drive の 00_inbox/records に直接入れてください'); return; }
         el.disabled = true; el.textContent = 'アップロード中…';
         const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(f); });
         try { const msg = await API.upload(Object.assign(base, { name: f.name, mimeType: f.type, base64: b64 })); closeOverlay(); toast(msg); }
-        catch (err) { el.disabled = false; el.textContent = '登録して議事録にする'; toast('エラー: ' + err); }
+        catch (err) { el.disabled = false; el.textContent = '登録する'; toast('エラー: ' + err); }
       }
       break;
     }
@@ -1278,7 +1284,7 @@ document.addEventListener('click', async e => {
       if (!input.name) { toast('案件名を入力してください'); return; }
       S.db = await API.upsertProject(input); closeOverlay(); render(); toast('保存しました'); break;
     }
-    case 'run-now': { el.disabled = true; S.db = await busy('処理しています…（数分かかることがあります）', () => API.runNow()); render(); toast('処理が完了しました'); break; }
+    case 'run-now': { el.disabled = true; S.db = await busy('解析結果を取り込んでいます…', () => API.runNow()); render(); toast('取り込みました（解析待ち ' + ((S.db.queue || {}).pending || 0) + ' 件）'); break; }
   }
 });
 
@@ -1311,141 +1317,137 @@ function sampleDb() {
   // 営業日ベースで n 日後（土日を飛ばす）
   const B = n => { const d = new Date(); let k = 0; const st = n >= 0 ? 1 : -1; while (k !== n) { d.setDate(d.getDate() + st); if (d.getDay() % 6 !== 0) k += st; } return ymd(d); };
   const T = n => B(n) + 'T';
+  const src = (kind, id, title) => ({ kind, id, title });
   const projects = [
-    { id: 'P-2026-001', name: '桜台三丁目 共同住宅新築', status: '進行中', phase: '確認申請', client: '桜台ハウジング株式会社', location: '横浜市青葉区桜台三丁目', aliases: ['桜台PJ', 'SR計画', '桜台レジデンス'], domains: ['sakuradai-h.example.jp'] },
-    { id: 'P-2026-002', name: '港北こどもクリニック 内装改修', status: '進行中', phase: '実施設計', client: '医療法人 港北会', location: '横浜市港北区新横浜二丁目', aliases: ['港北CL', 'こどもクリニック改修'], domains: ['kohoku-kai.example.jp'] },
-    { id: 'P-2026-003', name: 'K邸 新築（木造2階）', status: '進行中', phase: '施工', client: '木村 様', location: '川崎市麻生区', aliases: ['K邸', '木村邸'], domains: [] },
-    { id: 'P-2026-004', name: '緑ヶ丘 倉庫の用途変更', status: '提案', phase: '企画', client: '緑ヶ丘物流 株式会社（推定）', location: '町田市（推定）', aliases: [], domains: [] },
+    { id: 'P-2026-001', name: '(仮称)桜台三丁目共同住宅新築工事', status: '進行中', phase: '躯体工事', client: '桜台ハウジング株式会社', location: '横浜市青葉区桜台三丁目', aliases: ['桜台', 'SR新築', '工事番号26-014'], domains: ['sakuradai-h.example.jp'] },
+    { id: 'P-2026-002', name: '港北こどもクリニック内装改修工事', status: '進行中', phase: '仕上・設備工事', client: '医療法人 港北会', location: '横浜市港北区新横浜二丁目', aliases: ['港北CL', '工事番号26-021'], domains: ['kohoku-kai.example.jp'] },
+    { id: 'P-2026-003', name: 'K邸新築工事（木造2階）', status: '進行中', phase: '仕上・設備工事', client: '木村 様', location: '川崎市麻生区', aliases: ['K邸', '木村邸'], domains: [] },
+    { id: 'P-2026-004', name: '(仮称)緑ヶ丘倉庫改修工事', status: '提案', phase: '見積・受注', client: '緑ヶ丘物流 株式会社（推定）', location: '町田市（推定）', aliases: [], domains: [] },
   ];
   const mails = [
-    { id: 'm-1', conversationId: 'c1', date: T(0) + '08:42:00+09:00', direction: 'in', from: '横浜市 建築局 審査課 田中 <tanaka@city.example.jp>', to: 'あなた', subject: '【桜台三丁目共同住宅】確認申請 指摘事項の送付', projectId: 'P-2026-001', category: '行政協議', phase: '確認申請', title: '確認申請の指摘事項4件（回答期限あり）',
-      summary: '審査課より確認申請の指摘事項4件を受領。避難経路の歩行距離、2階住戸の排煙計算、敷地内通路幅員、日影図の測定面について修正・説明を求められている。回答期限は' + md_(B(6)) + '。', keyPoints: ['指摘事項は4件（避難・排煙・通路幅員・日影）', '回答期限 ' + md_(B(6)), '日影図は測定面 GL+4m で再作成が必要'], openIssues: ['通路幅員 1.5m 確保の可否（外構計画との調整が必要）'],
-      attachments: [{ name: '指摘事項一覧.pdf', url: '#', docType: '行政文書', summary: '指摘事項4件。条例第19条（敷地内通路）と令126条の3（排煙）に関するもの。', drawingNo: '', revision: '' }], fileId: 'doc-m1', webLink: '' },
-    { id: 'm-2', conversationId: 'c2', date: T(-1) + '17:15:00+09:00', direction: 'in', from: '医療法人 港北会 事務長 佐々木 <sasaki@kohoku-kai.example.jp>', to: 'あなた', subject: 'Re: 港北クリニック改修 レイアウト案について', projectId: 'P-2026-002', category: '施主対応', phase: '実施設計', title: '処置室の拡張と授乳室追加の要望',
-      summary: '院長確認の結果、B案をベースに処置室を1.5m拡張し、待合の一角に授乳室を追加したいとの要望。概算の増額と工期への影響を来週の定例までに知りたいとのこと。', keyPoints: ['B案ベースで確定', '処置室 +1.5m 拡張', '授乳室の追加（2㎡程度）', '増額・工期影響を次回定例で説明'], openIssues: ['授乳室追加による換気・給排水の影響'], attachments: [], fileId: 'doc-m2', webLink: '' },
-    { id: 'm-3', conversationId: 'c3', date: T(-1) + '11:03:00+09:00', direction: 'in', from: '湘南構造設計 高橋 <takahashi@shonan-kozo.example.jp>', to: 'あなた', subject: '桜台 構造図 Rev.C 送付', projectId: 'P-2026-001', category: '設計調整', phase: '確認申請', title: '構造図 Rev.C 受領（梁せい変更）',
-      summary: '構造図 Rev.C を受領。3階 X3 通りの大梁せいが 750 → 800 に変更。天井高への影響確認を依頼されている。', keyPoints: ['S-201〜S-215 を Rev.C に更新', 'X3 通り大梁せい 750→800'], openIssues: ['3階住戸の天井高 2,400 確保の可否'],
-      attachments: [{ name: '構造図_RevC.pdf', url: '#', docType: '図面', summary: '伏図・軸組図一式。改訂は雲マーク部分のみ。', drawingNo: 'S-201〜S-215', revision: 'Rev.C' }, { name: 'S-201_RevC.dwg', url: '#', docType: '図面', summary: 'CADデータ（解析対象外）', drawingNo: 'S-201', revision: 'Rev.C' }], fileId: 'doc-m3', webLink: '' },
-    { id: 'm-4', conversationId: 'c4', date: T(-2) + '15:40:00+09:00', direction: 'out', from: 'あなた', to: '丸山工務店 現場代理人 井上', subject: 'K邸 サッシ納まりの件', projectId: 'P-2026-003', category: '工事・現場', phase: '施工', title: '2階北側サッシ納まり図の再提出を依頼',
-      summary: '2階北側サッシの水切り納まりについて、防水紙の立上げ不足を指摘し、納まり図の再提出を依頼。あわせて来週の中間検査前に現場確認したい旨を連絡。', keyPoints: ['納まり図の再提出を依頼', '中間検査前に現場確認を希望'], openIssues: [], attachments: [], fileId: 'doc-m4', webLink: '' },
-    { id: 'm-5', conversationId: 'c5', date: T(-3) + '09:20:00+09:00', direction: 'in', from: '丸山工務店 井上 <inoue@maruyama.example.jp>', to: 'あなた', subject: 'K邸 追加工事見積', projectId: 'P-2026-003', category: '見積・契約', phase: '施工', title: '追加工事見積（造作収納・外構）受領',
-      summary: '施主要望の造作収納と外構フェンス変更の追加見積を受領。合計 1,286,000円（税込）。有効期限は' + md_(B(12)) + '。', keyPoints: ['造作収納 742,500円', '外構フェンス変更 543,500円', '合計 1,286,000円（税込）'], openIssues: ['フェンス高さの施主確認'],
-      attachments: [{ name: '追加見積_20260922.xlsx', url: '#', docType: '見積書', summary: '2項目・合計 1,286,000円（税込）。前回提示から外構が 8万円減額。', drawingNo: '', revision: '' }], fileId: 'doc-m5', webLink: '' },
-    { id: 'm-6', conversationId: 'c6', date: T(-4) + '13:05:00+09:00', direction: 'in', from: '総務部 <soumu@example.co.jp>', to: '全社', subject: '10月の勤怠締め日のお知らせ', projectId: 'GENERAL', category: '社内', phase: '該当なし', title: '10月の勤怠締めは第1営業日',
-      summary: '10月分の勤怠締めは翌月第1営業日の正午。交通費精算も同日締め。', keyPoints: ['勤怠・交通費の締めは翌月第1営業日の正午'], openIssues: [], attachments: [], fileId: 'doc-m6', webLink: '' },
+    { id: 'm-1', conversationId: 'c1', date: T(0) + '08:42:00+09:00', direction: 'in', from: '〇〇設計事務所 監理 山口 <yamaguchi@design.example.jp>', to: 'あなた', subject: '【桜台】3Fスラブ配筋検査 指摘事項', projectId: 'P-2026-001', category: '設計・監理者対応', phase: '躯体工事', title: '3Fスラブ配筋検査の指摘3件（是正報告の期限あり）',
+      summary: '監理者より3階スラブ配筋検査の指摘3件を受領。開口補強筋の不足、かぶり厚さ不足、スペーサー間隔の是正を求められている。是正報告の期限は' + md_(B(5)) + '、コンクリート打設は' + md_(B(7)) + '予定。', keyPoints: ['指摘3件（開口補強筋・かぶり厚さ・スペーサー間隔）', '是正報告の期限 ' + md_(B(5)), '打設予定 ' + md_(B(7))], openIssues: ['X3通り開口部の補強筋径（D13かD16か）を監理者に確認中'],
+      attachments: [{ name: '配筋検査指摘事項_3F.pdf', url: '#', docType: '検査・品質記録', summary: '3階スラブ配筋検査の指摘3件と是正期限。', drawingNo: '', revision: '' }], fileId: 'doc-m1', webLink: '' },
+    { id: 'm-2', conversationId: 'c2', date: T(-1) + '17:15:00+09:00', direction: 'in', from: '医療法人 港北会 事務長 佐々木 <sasaki@kohoku-kai.example.jp>', to: 'あなた', subject: 'Re: 港北クリニック 処置室の件', projectId: 'P-2026-002', category: '発注者対応', phase: '仕上・設備工事', title: '処置室の拡張と授乳室追加の変更要望',
+      summary: '院長確認の結果、処置室を1.5m拡張し、待合の一角に授乳室を追加したいとの要望。増減額と工期への影響を次回定例までに知りたいとのこと。', keyPoints: ['処置室 +1.5m 拡張', '授乳室の追加（約2㎡）', '増減額・工期影響を次回定例で説明'], openIssues: ['授乳室追加による換気・給排水ルートの変更'], attachments: [], fileId: 'doc-m2', webLink: '' },
+    { id: 'm-3', conversationId: 'c3', date: T(-1) + '11:03:00+09:00', direction: 'in', from: '湘南設備工業 高橋 <takahashi@shonan-setsubi.example.jp>', to: 'あなた', subject: '港北CL 設備施工図 Rev.B 承認のお願い', projectId: 'P-2026-002', category: '協力会社・発注', phase: '仕上・設備工事', title: '設備施工図 Rev.B の承認依頼',
+      summary: '衛生・空調の施工図 Rev.B を受領。天井内のダクトルートを変更し、梁下の有効高さを確保したとのこと。' + md_(B(3)) + 'までに承認がほしい（配管の先行手配のため）。', keyPoints: ['M-201〜M-206 を Rev.B に更新', '承認希望 ' + md_(B(3))],
+      openIssues: ['処置室拡張の変更が施工図に未反映'], attachments: [{ name: '設備施工図_RevB.pdf', url: '#', docType: '図面・施工図', summary: '空調・衛生の施工図一式。ダクトルート変更部に雲マーク。', drawingNo: 'M-201〜M-206', revision: 'Rev.B' }, { name: 'M-201_RevB.dwg', url: '#', docType: '図面・施工図', summary: 'CAD データ（解析対象外）', drawingNo: 'M-201', revision: 'Rev.B' }], fileId: 'doc-m3', webLink: '' },
+    { id: 'm-4', conversationId: 'c4', date: T(-1) + '09:10:00+09:00', direction: 'in', from: '桜台ハウジング 工事担当 石井 <ishii@sakuradai-h.example.jp>', to: 'あなた', subject: '桜台 近隣からのご意見', projectId: 'P-2026-001', category: '近隣対応', phase: '躯体工事', title: '近隣から工事車両の待機についての苦情',
+      summary: '北側の住民から、朝7時台に生コン車が道路で待機していると発注者に連絡があった。対応方針を報告してほしいとのこと。', keyPoints: ['朝7時台の車両待機への苦情', '発注者への対応報告を依頼'], openIssues: ['4F打設時の車両待機場所'], attachments: [], fileId: 'doc-m4', webLink: '' },
+    { id: 'm-5', conversationId: 'c5', date: T(-2) + '15:40:00+09:00', direction: 'out', from: 'あなた', to: '丸山建材 営業 井上', subject: 'K邸 サッシ納まり図の件', projectId: 'P-2026-003', category: '協力会社・発注', phase: '仕上・設備工事', title: '2階北側サッシ納まり図の再提出を依頼',
+      summary: '2階北側サッシの水切り納まりについて、防水紙の立上げ不足を指摘し、納まり図の再提出を依頼。中間検査前に現場で確認したい旨も連絡。', keyPoints: ['納まり図の再提出を依頼', '中間検査前に現場確認を希望'], openIssues: [], attachments: [], fileId: 'doc-m5', webLink: '' },
+    { id: 'm-6', conversationId: 'c6', date: T(-3) + '13:05:00+09:00', direction: 'in', from: '工事部 <kouji@example.co.jp>', to: '工事部各位', subject: '9月度 出来高査定資料の提出について', projectId: 'GENERAL', category: '社内', phase: '該当なし', title: '9月度の出来高査定資料は月末締め',
+      summary: '9月度の出来高査定資料と協力会社の請求取りまとめは、翌月第2営業日までに工事部へ提出。', keyPoints: ['提出期限 翌月第2営業日'], openIssues: [], attachments: [], fileId: 'doc-m6', webLink: '' },
   ];
   const records = [
-    { id: 'r-1', date: B(-6), time: '14:00〜15:10', type: '行政協議', title: '建築指導課 事前相談（日影・壁面後退）', projectId: 'P-2026-001', counterpart: '横浜市 建築局 建築指導課', summary: '日影規制の測定面、壁面後退の緩和、敷地内通路の幅員について事前相談。日影は GL+4m で再検討、通路幅員 1.5m 以上が必要との見解。', fileId: 'doc-r1', qaOpen: 2 },
-    { id: 'r-2', date: B(-8), time: '10:00〜11:30', type: '施主打合せ', title: '第3回 レイアウト定例（A案/B案比較）', projectId: 'P-2026-002', counterpart: '医療法人 港北会', summary: 'A案とB案を比較。動線と待合の広さから B案で進める方向。処置室の広さは院長確認後に回答。', fileId: 'doc-r2', qaOpen: 1 },
-    { id: 'r-3', date: B(-10), time: '', type: '現場確認', title: '上棟後の構造金物チェック', projectId: 'P-2026-003', counterpart: '丸山工務店', summary: '金物の取付状況を確認。2箇所でビス不足を指摘し是正を依頼。', fileId: 'doc-r3', qaOpen: 0 },
+    { id: 'r-1', date: B(-4), time: '14:00〜15:00', type: '行政協議・検査', title: '青葉消防署 事前協議（避難器具・誘導灯）', projectId: 'P-2026-001', counterpart: '青葉消防署 予防課', summary: '避難器具の設置位置と誘導灯の配置を協議。3階の避難器具は開口寸法の確認が必要、誘導灯は廊下突き当たりに1台追加との指導。', fileId: 'doc-r1', qaOpen: 2 },
+    { id: 'r-2', date: B(-6), time: '10:00〜11:30', type: '発注者打合せ', title: '港北クリニック 第3回定例（内装仕様・工程）', projectId: 'P-2026-002', counterpart: '医療法人 港北会', summary: '床材と照明の色決め。処置室の広さは院長確認後に回答。開院日から逆算して引渡しは' + md_(B(25)) + 'を死守。', fileId: 'doc-r2', qaOpen: 1 },
+    { id: 'r-3', date: B(-3), time: '16:00〜16:40', type: '工程会議・職長会', title: '桜台 職長会（4F躯体・揚重計画）', projectId: 'P-2026-001', counterpart: '協力会社 各職長', summary: '4F躯体の工程を確認。打設日の生コン車待機場所を敷地内に変更、道路使用許可の申請が必要。', fileId: 'doc-r3', qaOpen: 1 },
   ];
-  const src = (kind, id, title) => ({ kind, id, title });
   const tasks = [
-    { id: 't-1', title: '確認申請の指摘事項4件への回答書を作成し提出する', why: '審査課・田中氏から指摘事項4件。回答期限は' + md_(B(6)) + '。', projectId: 'P-2026-001', owner: 'me', status: 'proposed', priority: 'high', due: B(5), dueBasis: '本文に回答期限の明記あり → 期限の1営業日前に提出', estimateMin: 600, confidence: 'high',
-      subtasks: [{ id: 's1', title: '指摘事項を整理し、対応方針（修正/説明）を決める', due: B(1), done: false }, { id: 's2', title: '日影図を GL+4m 測定面で再作成するよう CAD担当に依頼', due: B(1), done: false }, { id: 's3', title: '排煙計算書と避難経路図を修正する', due: B(3), done: false }, { id: 's4', title: '回答書を作成し所長チェックを受ける', due: B(4), done: false }, { id: 's5', title: '電子申請システムで回答書と修正図を提出する', due: B(5), done: false }],
-      source: src('mail', 'm-1', '確認申請の指摘事項4件（回答期限あり）'), createdAt: T(0) + '08:45' },
-    { id: 't-2', title: '処置室拡張と授乳室追加の増額・工期影響を港北会へ回答する', why: '事務長から、次回定例までに増額と工期への影響を知りたいとの依頼。', projectId: 'P-2026-002', owner: 'me', status: 'proposed', priority: 'mid', due: B(4), dueBasis: '「来週の定例までに」→ 定例の前営業日', estimateMin: 240, confidence: 'high',
-      subtasks: [{ id: 's1', title: 'B案に処置室+1.5m・授乳室を反映したプランを作る', due: B(1), done: false }, { id: 's2', title: '授乳室の換気・給排水ルートを設備設計に確認する', due: B(2), done: false }, { id: 's3', title: '施工者に概算見積を依頼する', due: B(2), done: false }, { id: 's4', title: '増額・工期の説明資料をまとめて送る', due: B(4), done: false }],
-      source: src('mail', 'm-2', '処置室の拡張と授乳室追加の要望'), createdAt: T(-1) + '17:20' },
-    { id: 't-3', title: '構造図 Rev.C の梁せい変更による3階天井高への影響を確認し、構造設計へ回答する', why: '湘南構造設計・高橋氏から天井高への影響確認の依頼。', projectId: 'P-2026-001', owner: 'me', status: 'proposed', priority: 'mid', due: B(2), dueBasis: '既定: 質問への回答は2営業日以内', estimateMin: 90, confidence: 'mid',
-      subtasks: [{ id: 's1', title: 'X3 通りの断面で天井高 2,400 が確保できるか確認する', due: B(1), done: false }, { id: 's2', title: '不足する場合は下がり天井の範囲を決めて回答する', due: B(2), done: false }],
-      source: src('mail', 'm-3', '構造図 Rev.C 受領（梁せい変更）'), createdAt: T(-1) + '11:10' },
-    { id: 't-4', title: '追加見積（造作収納・外構）を精査し、木村様へ説明する', why: '丸山工務店から追加見積を受領。見積有効期限は' + md_(B(12)) + '。', projectId: 'P-2026-003', owner: 'me', status: 'todo', priority: 'mid', due: B(7), dueBasis: '見積有効期限の前に施主判断を得る', estimateMin: 120, confidence: 'high',
-      subtasks: [{ id: 's1', title: '見積内訳を図面と照合する', due: B(3), done: true }, { id: 's2', title: 'フェンス高さの希望を木村様に確認する', due: B(5), done: false }, { id: 's3', title: '説明資料を作って送る', due: B(7), done: false }],
-      source: src('mail', 'm-5', '追加工事見積（造作収納・外構）受領'), createdAt: T(-3) + '09:30' },
-    { id: 't-5', title: '事前相談の議事録を施主と共有する', why: '建築指導課との事前相談の結果を施主に報告。', projectId: 'P-2026-001', owner: 'me', status: 'doing', priority: 'mid', due: B(-1), dueBasis: '既定: 5営業日以内', estimateMin: 45, confidence: 'high', subtasks: [], source: src('record', 'r-1', '建築指導課 事前相談（日影・壁面後退）'), createdAt: T(-6) + '16:00' },
-    { id: 't-6', title: '敷地内通路幅員 1.5m の確保について外構計画を見直す', why: '事前相談で通路幅員 1.5m 以上が必要との見解。', projectId: 'P-2026-001', owner: 'me', status: 'todo', priority: 'high', due: B(0), dueBasis: '指摘事項の回答作成に先行して必要', estimateMin: 120, confidence: 'high',
-      subtasks: [{ id: 's1', title: '駐輪場の配置を北側に振り替える案を作る', due: B(0), done: false }], source: src('record', 'r-1', '建築指導課 事前相談（日影・壁面後退）'), createdAt: T(-6) + '16:00' },
-    { id: 't-7', title: '中間検査前の現場確認日程を調整する', why: '送信メールで「中間検査前に現場確認したい」と約束。', projectId: 'P-2026-003', owner: 'me', status: 'todo', priority: 'mid', due: B(1), dueBasis: '本人の送信メールでの約束', estimateMin: 20, confidence: 'mid', subtasks: [], source: src('mail', 'm-4', '2階北側サッシ納まり図の再提出を依頼'), createdAt: T(-2) + '15:45' },
-    { id: 't-8', title: '9月分の交通費精算を提出する', why: '総務より締め日の案内。', projectId: 'GENERAL', owner: 'me', status: 'proposed', priority: 'low', due: B(6), dueBasis: '締め日（翌月第1営業日正午）の前営業日', estimateMin: 15, confidence: 'mid', subtasks: [], source: src('mail', 'm-6', '10月の勤怠締めは第1営業日'), createdAt: T(-4) + '13:10' },
-    { id: 'w-1', title: '丸山工務店 井上氏から: 2階北側サッシの納まり図（再提出）', projectId: 'P-2026-003', owner: 'other', who: '丸山工務店 井上', status: 'waiting', priority: 'mid', due: B(-1), dueBasis: '', subtasks: [], source: src('mail', 'm-4', '2階北側サッシ納まり図の再提出を依頼'), createdAt: T(-2) + '15:45' },
-    { id: 'w-2', title: '港北会から: 処置室の広さについて院長の最終判断', projectId: 'P-2026-002', owner: 'other', who: '港北会 佐々木事務長', status: 'waiting', priority: 'mid', due: '', dueBasis: '', subtasks: [], source: src('record', 'r-2', '第3回 レイアウト定例（A案/B案比較）'), createdAt: T(-8) + '12:00', suggestDone: { mailId: 'm-2', title: '処置室の拡張と授乳室追加の要望' } },
-    { id: 'w-3', title: '湘南構造設計から: 基礎伏図 Rev.C', projectId: 'P-2026-001', owner: 'other', who: '湘南構造設計 高橋', status: 'waiting', priority: 'mid', due: B(3), dueBasis: '', subtasks: [], source: src('mail', 'm-3', '構造図 Rev.C 受領（梁せい変更）'), createdAt: T(-1) + '11:10' },
-    { id: 't-9', title: '上棟後の金物是正の写真を受領し確認する', projectId: 'P-2026-003', owner: 'me', status: 'done', priority: 'mid', due: B(-5), doneAt: T(-4) + '10:00', subtasks: [], source: src('record', 'r-3', '上棟後の構造金物チェック'), createdAt: T(-10) },
+    { id: 't-1', title: '3Fスラブ配筋検査の指摘3件を是正し、写真を添えて監理者へ報告する', why: '監理者から是正報告の依頼。期限は' + md_(B(5)) + '、' + md_(B(7)) + 'の打設前に完了が必要。', projectId: 'P-2026-001', owner: 'me', status: 'proposed', priority: 'high', due: B(4), dueBasis: '本文に是正報告の期限の明記あり → 期限の1営業日前に提出', estimateMin: 240, confidence: 'high',
+      subtasks: [{ id: 's1', title: '指摘3件の是正内容を鉄筋業者の職長へ指示する', due: B(1), done: false }, { id: 's2', title: '開口補強筋の径を監理者に質疑で確認する', due: B(1), done: false }, { id: 's3', title: '是正状況を確認し、写真を撮影する', due: B(3), done: false }, { id: 's4', title: '是正報告書を作成して所長の確認を受け、監理者へ提出する', due: B(4), done: false }],
+      source: src('mail', 'm-1', '3Fスラブ配筋検査の指摘3件（是正報告の期限あり）'), createdAt: T(0) + '08:45' },
+    { id: 't-2', title: '処置室拡張と授乳室追加の増減額・工程影響を港北会へ提示する', why: '事務長から、次回定例までに増減額と工期への影響を知りたいとの依頼。', projectId: 'P-2026-002', owner: 'me', status: 'proposed', priority: 'high', due: B(4), dueBasis: '「次回定例までに」→ 定例の前営業日', estimateMin: 300, confidence: 'high',
+      subtasks: [{ id: 's1', title: '変更範囲を設計者に質疑書で確認する', due: B(1), done: false }, { id: 's2', title: '内装・設備の協力会社へ見積を依頼する', due: B(1), done: false }, { id: 's3', title: '工程への影響（引渡し日）を確認する', due: B(3), done: false }, { id: 's4', title: '変更見積と工程影響をまとめて港北会へ送る', due: B(4), done: false }],
+      source: src('mail', 'm-2', '処置室の拡張と授乳室追加の変更要望'), createdAt: T(-1) + '17:20' },
+    { id: 't-3', title: '設備施工図 Rev.B をチェックし、監理者へ承認を依頼する', why: '湘南設備工業から承認依頼。配管の先行手配のため' + md_(B(3)) + 'までに承認がほしい。', projectId: 'P-2026-002', owner: 'me', status: 'proposed', priority: 'mid', due: B(2), dueBasis: '承認希望日の前営業日に監理者へ回付', estimateMin: 150, confidence: 'mid',
+      subtasks: [{ id: 's1', title: 'ダクトルート変更部と梁下有効高さを確認する', due: B(1), done: false }, { id: 's2', title: '処置室拡張の反映漏れを協力会社に指摘する', due: B(1), done: false }, { id: 's3', title: '監理者へ承認依頼を送る', due: B(2), done: false }],
+      source: src('mail', 'm-3', '設備施工図 Rev.B の承認依頼'), createdAt: T(-1) + '11:10' },
+    { id: 't-4', title: '4F打設日の道路使用許可を青葉警察署へ申請する', why: '職長会で生コン車の待機場所を変更。打設日前に許可が必要。', projectId: 'P-2026-001', owner: 'me', status: 'todo', priority: 'high', due: B(1), dueBasis: '打設日から審査日数（目安1週間）を逆算', estimateMin: 120, confidence: 'high',
+      subtasks: [{ id: 's1', title: '使用範囲の図面と誘導員配置を作る', due: B(0), done: true }, { id: 's2', title: '申請書を作成して警察署へ提出する', due: B(1), done: false }], source: src('record', 'r-3', '桜台 職長会（4F躯体・揚重計画）'), createdAt: T(-3) + '17:00' },
+    { id: 't-5', title: '消防事前協議の議事録を発注者・監理者へ共有する', why: '青葉消防署との事前協議の結果を関係者へ報告。', projectId: 'P-2026-001', owner: 'me', status: 'doing', priority: 'mid', due: B(-1), dueBasis: '既定: 書類作成は5営業日以内', estimateMin: 45, confidence: 'high', subtasks: [], source: src('record', 'r-1', '青葉消防署 事前協議（避難器具・誘導灯）'), createdAt: T(-4) + '16:00' },
+    { id: 't-6', title: '近隣への工事車両の待機についての説明文を作成し、発注者へ対応方針を報告する', why: '発注者経由で近隣から苦情。対応方針の報告を依頼されている。', projectId: 'P-2026-001', owner: 'me', status: 'todo', priority: 'high', due: B(0), dueBasis: '苦情対応のため至急 → 翌営業日以内', estimateMin: 90, confidence: 'high',
+      subtasks: [{ id: 's1', title: '生コン車の到着時間と待機場所の変更案をまとめる', due: B(0), done: false }, { id: 's2', title: '近隣向けのお知らせ文を作成する', due: B(0), done: false }], source: src('mail', 'm-4', '近隣から工事車両の待機についての苦情'), createdAt: T(-1) + '09:20' },
+    { id: 't-7', title: '中間検査前のサッシ納まり確認の日程を丸山建材と調整する', why: '本人の送信メールで「中間検査前に現場で確認したい」と連絡済み。', projectId: 'P-2026-003', owner: 'me', status: 'todo', priority: 'mid', due: B(1), dueBasis: '本人の送信メールでの約束。中間検査の前営業日までに確認', estimateMin: 20, confidence: 'mid', subtasks: [], source: src('mail', 'm-5', '2階北側サッシ納まり図の再提出を依頼'), createdAt: T(-2) + '15:45' },
+    { id: 't-8', title: '9月度の出来高査定資料を工事部へ提出する', why: '工事部より提出依頼。', projectId: 'GENERAL', owner: 'me', status: 'proposed', priority: 'low', due: B(6), dueBasis: '締切（翌月第2営業日）の前営業日', estimateMin: 90, confidence: 'mid', subtasks: [], source: src('mail', 'm-6', '9月度の出来高査定資料は月末締め'), createdAt: T(-3) + '13:10' },
+    { id: 'w-1', title: '丸山建材 井上氏から: 2階北側サッシの納まり図（再提出）', projectId: 'P-2026-003', owner: 'other', who: '丸山建材 井上', status: 'waiting', priority: 'mid', due: B(-1), dueBasis: '', subtasks: [], source: src('mail', 'm-5', '2階北側サッシ納まり図の再提出を依頼'), createdAt: T(-2) + '15:45' },
+    { id: 'w-2', title: '港北会から: 処置室の広さについて院長の最終判断', projectId: 'P-2026-002', owner: 'other', who: '港北会 佐々木事務長', status: 'waiting', priority: 'mid', due: '', dueBasis: '', subtasks: [], source: src('record', 'r-2', '港北クリニック 第3回定例（内装仕様・工程）'), createdAt: T(-6) + '12:00', suggestDone: { mailId: 'm-2', title: '処置室の拡張と授乳室追加の変更要望' } },
+    { id: 'w-3', title: '〇〇設計事務所から: X3通り開口補強筋の径の回答', projectId: 'P-2026-001', owner: 'other', who: '〇〇設計事務所 山口', status: 'waiting', priority: 'mid', due: B(2), dueBasis: '', subtasks: [], source: src('mail', 'm-1', '3Fスラブ配筋検査の指摘3件（是正報告の期限あり）'), createdAt: T(0) + '08:45' },
+    { id: 't-9', title: '上棟後の金物是正の写真を受領し確認する', projectId: 'P-2026-003', owner: 'me', status: 'done', priority: 'mid', due: B(-5), doneAt: T(-4) + '10:00', subtasks: [], source: src('record', 'r-3', ''), createdAt: T(-10) },
   ];
   const decisions = [
-    { id: 'd-1', date: B(-6), projectId: 'P-2026-001', text: '日影規制の測定面は GL+4m で検討する', source: src('record', 'r-1', '') },
-    { id: 'd-2', date: B(-8), projectId: 'P-2026-002', text: 'レイアウトは B案をベースに進める', source: src('record', 'r-2', '') },
-    { id: 'd-3', date: B(-1), projectId: 'P-2026-002', text: '処置室を 1.5m 拡張し、待合の一角に授乳室を設ける（院長了承）', source: src('mail', 'm-2', '') },
+    { id: 'd-1', date: B(-4), projectId: 'P-2026-001', text: '廊下突き当たりに誘導灯を1台追加する（消防の指導）', source: src('record', 'r-1', '') },
+    { id: 'd-2', date: B(-3), projectId: 'P-2026-001', text: '打設日の生コン車は敷地内の東側ヤードで待機させる', source: src('record', 'r-3', '') },
+    { id: 'd-3', date: B(-6), projectId: 'P-2026-002', text: '引渡し日は' + md_(B(25)) + 'を死守する', source: src('record', 'r-2', '') },
   ];
   const events = [
-    { id: 'e-1', title: '港北クリニック 第4回定例', start: T(5) + '10:00', end: '', place: '港北会 会議室', projectId: 'P-2026-002' },
+    { id: 'e-1', title: '桜台 監理者定例', start: T(2) + '15:00', end: '', place: '現場事務所', projectId: 'P-2026-001' },
     { id: 'e-2', title: 'K邸 中間検査', start: T(4) + '13:30', end: '', place: '現地', projectId: 'P-2026-003' },
-    { id: 'e-3', title: '桜台 設計定例（施主・構造・設備）', start: T(2) + '15:00', end: '', place: 'オンライン', projectId: 'P-2026-001' },
-    { id: 'e-4', title: '確認申請 指摘事項 回答期限', start: B(6), end: '', place: '', projectId: 'P-2026-001' },
+    { id: 'e-3', title: '港北クリニック 第4回定例', start: T(5) + '10:00', end: '', place: '港北会 会議室', projectId: 'P-2026-002' },
+    { id: 'e-4', title: '桜台 4F床 コンクリート打設', start: B(7), end: '', place: '現場', projectId: 'P-2026-001' },
   ];
   const brief = { date: B(0), fileId: 'doc-brief', md: [
     '## 今日の最優先',
-    '- **敷地内通路 1.5m の外構見直し**［桜台］— 指摘事項への回答の前提。今日が期日',
-    '- **事前相談議事録の施主共有**［桜台］— 昨日が期日。午前中に送付を',
-    '- **確認申請 指摘事項の整理**［桜台］— 本日受領。回答期限 ' + md_(B(6)) + '。まず方針決めと日影図の依頼を',
+    '- **近隣への説明と発注者への報告**［桜台］— 苦情対応のため今日中。車両待機の変更案を添えて',
+    '- **道路使用許可の申請**［桜台］— 明日が期日。打設日から審査日数を逆算すると余裕なし',
+    '- **配筋検査の指摘是正の段取り**［桜台］— 本日受領。まず鉄筋の職長へ指示と補強筋径の質疑',
     '## 今日の予定',
-    '- 予定なし（' + md_(B(2)) + ' 15:00 に桜台の設計定例）',
+    '- 予定なし（' + md_(B(2)) + ' 15:00 に桜台の監理者定例）',
     '## 期限切れ・要注意',
-    '- 丸山工務店のサッシ納まり図が期限超過（相手待ち）',
+    '- 消防事前協議の議事録共有［桜台］が1日超過',
+    '- 丸山建材のサッシ納まり図が期限超過（相手待ち）',
     '## 新着の要点',
-    '- 港北会: B案で確定、処置室+1.5m・授乳室追加。次回定例までに増額・工期を回答',
-    '- 構造図 Rev.C: X3 通り大梁せい 750→800。3階天井高の確認依頼',
+    '- 港北会: 処置室+1.5m・授乳室追加。次回定例までに増減額と工期影響を提示',
+    '- 設備施工図 Rev.B: 処置室拡張が未反映。承認前に指摘が必要',
     '## 催促を検討',
-    '- 丸山工務店 井上氏へ納まり図の再提出を催促',
+    '- 丸山建材 井上氏へ納まり図の再提出を催促',
   ].join('\n') };
 
   DEMO_DOCS['doc-brief'] = brief.md;
   DEMO_DOCS['doc-m1'] = [
-    '---', 'type: "mail-thread"', 'project: "P-2026-001"', 'category: "行政協議"', 'phase: "確認申請"', 'started: "' + B(0) + '"', '---',
-    '# 確認申請の指摘事項4件（回答期限あり）', '', '> 案件: P-2026-001 桜台三丁目 共同住宅新築 ｜ 種別: 行政協議 ｜ 件名: 【桜台三丁目共同住宅】確認申請 指摘事項の送付', '',
-    '## ' + B(0) + ' 08:42 受信 ｜ 横浜市 建築局 審査課 田中', '',
-    '審査課より確認申請の指摘事項4件を受領。避難経路の歩行距離、2階住戸の排煙計算、敷地内通路幅員、日影図の測定面について修正・説明を求められている。', '',
-    '**要点**', '- 指摘事項は4件（避難・排煙・通路幅員・日影）', '- 回答期限 ' + md_(B(6)), '- 日影図は測定面 GL+4m で再作成が必要', '',
-    '**本人のタスク（提案）**', '- [ ] 確認申請の指摘事項4件への回答書を作成し提出する 📅 ' + B(5) + ' ⏫ 🆔 t-1', '    - [ ] 指摘事項を整理し、対応方針（修正/説明）を決める 📅 ' + B(1), '    - [ ] 日影図を GL+4m 測定面で再作成するよう CAD担当に依頼 📅 ' + B(1), '    - [ ] 排煙計算書と避難経路図を修正する 📅 ' + B(3), '',
-    '**添付**', '- [指摘事項一覧.pdf](#) 〔行政文書〕 — 指摘事項4件。条例第19条（敷地内通路）と令126条の3（排煙）に関するもの。', '',
-    '<details><summary>本文（原文）</summary>', '', '~~~text', '株式会社〇〇設計事務所\n〇〇様\n\nお世話になっております。横浜市建築局審査課の田中です。\n標記の件、審査の結果、別添のとおり指摘事項がございます。\n' + md_(B(6)) + 'までにご回答をお願いいたします。', '~~~', '', '</details>',
+    '---', 'type: "mail-thread"', 'project: "P-2026-001"', 'category: "設計・監理者対応"', 'phase: "躯体工事"', 'started: "' + B(0) + '"', '---',
+    '# 3Fスラブ配筋検査の指摘3件（是正報告の期限あり）', '', '> 案件: P-2026-001 (仮称)桜台三丁目共同住宅新築工事 ｜ 種別: 設計・監理者対応 ｜ 件名: 【桜台】3Fスラブ配筋検査 指摘事項', '',
+    '## ' + B(0) + ' 08:42 受信 ｜ 〇〇設計事務所 監理 山口', '',
+    mails[0].summary, '',
+    '**要点**', ...mails[0].keyPoints.map(x => '- ' + x), '',
+    '**懸案**', '- X3通り開口部の補強筋径（D13かD16か）を監理者に確認中', '',
+    '**本人のタスク（提案）**', '- [ ] 3Fスラブ配筋検査の指摘3件を是正し、写真を添えて監理者へ報告する 📅 ' + B(4) + ' ⏫ 🆔 t-1',
+    ...tasks[0].subtasks.map(x => '    - [ ] ' + x.title + ' 📅 ' + x.due), '',
+    '**相手待ち**', '- 〇〇設計事務所から: X3通り開口補強筋の径の回答（期限 ' + B(2) + '）', '',
+    '**添付**', '- [配筋検査指摘事項_3F.pdf](#) 〔検査・品質記録〕 — 3階スラブ配筋検査の指摘3件と是正期限。', '',
+    '<details><summary>本文（原文）</summary>', '', '~~~text', '〇〇建設 山田様\n\nお世話になっております。〇〇設計事務所の山口です。\n本日の3Fスラブ配筋検査の指摘事項を送付します。\n' + md_(B(5)) + 'までに是正報告をお願いいたします。', '~~~', '', '</details>',
   ].join('\n');
-  ['m2', 'm3', 'm4', 'm5', 'm6'].forEach((k, i) => {
-    const m = mails[i + 1];
-    DEMO_DOCS['doc-' + k] = '# ' + m.title + '\n\n> 件名: ' + m.subject + '\n\n## ' + m.date.slice(0, 16).replace('T', ' ') + ' ' + (m.direction === 'out' ? '送信' : '受信') + '\n\n' + m.summary + '\n\n**要点**\n' + m.keyPoints.map(x => '- ' + x).join('\n') + '\n';
+  mails.slice(1).forEach((m, i) => {
+    DEMO_DOCS['doc-m' + (i + 2)] = '# ' + m.title + '\n\n> 件名: ' + m.subject + '\n\n## ' + m.date.slice(0, 16).replace('T', ' ') + ' ' + (m.direction === 'out' ? '送信' : '受信') + '\n\n' + m.summary + '\n\n**要点**\n' + m.keyPoints.map(x => '- ' + x).join('\n') + '\n';
   });
   DEMO_DOCS['doc-r1'] = [
-    '---', 'type: "record"', 'record_type: "行政協議"', 'project: "P-2026-001"', 'date: "' + B(-6) + '"', '---',
-    '# ' + B(-6) + ' 行政協議｜建築指導課 事前相談（日影・壁面後退）', '',
-    '| 項目 | 内容 |', '|---|---|', '| 案件 | P-2026-001 桜台三丁目 共同住宅新築 |', '| 日時 | ' + B(-6) + ' 14:00〜15:10 |', '| 場所 | 横浜市役所 建築局 窓口 |', '| 相手先 | 横浜市 建築局 建築指導課 |', '| 出席者 | 指導課 山口係長、担当 森氏／当方 2名 |', '| 目的 | 確認申請前の日影規制・壁面後退・敷地内通路の確認 |', '',
-    '## 概要', '', '日影規制の測定面、壁面後退の緩和の適用、敷地内通路の幅員について事前相談。日影は GL+4m で再検討、通路幅員は 1.5m 以上が必要との見解を得た。', '',
+    '---', 'type: "record"', 'record_type: "行政協議・検査"', 'project: "P-2026-001"', 'date: "' + B(-4) + '"', '---',
+    '# ' + B(-4) + ' 行政協議・検査｜青葉消防署 事前協議（避難器具・誘導灯）', '',
+    '| 項目 | 内容 |', '|---|---|', '| 案件 | P-2026-001 (仮称)桜台三丁目共同住宅新築工事 |', '| 日時 | ' + B(-4) + ' 14:00〜15:00 |', '| 場所 | 青葉消防署 予防課 窓口 |', '| 相手先 | 青葉消防署 予防課 |', '| 出席者 | 予防課 森氏／当社 2名、設備協力会社 1名 |', '| 目的 | 中間検査前の避難器具・誘導灯の配置確認 |', '',
+    '## 概要', '', records[0].summary, '',
     '## 協議事項', '', '| # | 論点 | 相手の指摘・要望 | 回答・協議結果 | 根拠 | 状態 |', '|---|---|---|---|---|---|',
-    '| 1 | 日影 | 測定面は GL+4m とすること | GL+4m で再作成する | 条例別表（第二種中高層） | 解決 |',
-    '| 2 | 敷地内通路 | 屋外への通路幅員 1.5m 以上 | 駐輪場配置を見直して確保を検討 | 市条例第19条（必須） | 要対応 |',
-    '| 3 | 壁面後退 | 緩和の適用は庇部分のみ可 | 庇の出寸法を 900 以下に調整 | 地区計画の運用基準（指導） | 継続協議 |', '',
-    '## 決定事項', '', '- 日影規制の測定面は GL+4m で検討する', '',
-    '## 本人のタスク（提案）', '', '- [ ] 敷地内通路幅員 1.5m の確保について外構計画を見直す 📅 ' + B(0) + ' ⏫ 🆔 t-6', '    - [ ] 駐輪場の配置を北側に振り替える案を作る 📅 ' + B(0), '- [ ] 事前相談の議事録を施主と共有する 📅 ' + B(-1) + ' 🔼 🆔 t-5', '',
-    '## 次回', '', '- 日時: 未定（確認申請提出後）', '- 議題: 壁面後退の緩和範囲', '',
-    '## 原本', '', '- [' + B(-6) + '_建築指導課 事前相談.m4a](#)', '- [文字起こし](#)',
+    '| 1 | 誘導灯 | 廊下突き当たりに1台追加 | 追加する（設備図を修正） | 消防法施行令第26条（指導） | 解決 |',
+    '| 2 | 避難器具 | 3階の開口寸法を確認すること | 施工図で寸法を確認し報告 | 避難器具の設置基準（必須） | 要対応 |',
+    '| 3 | 消防用設備の着工届 | 提出時期の確認 | 設備協力会社から来週提出 | 消防法第17条の14 | 要対応 |', '',
+    '## 決定事項', '', '- 廊下突き当たりに誘導灯を1台追加する（消防の指導）', '',
+    '## 本人のタスク（提案）', '', '- [ ] 消防事前協議の議事録を発注者・監理者へ共有する 📅 ' + B(-1) + ' 🔼 🆔 t-5', '',
+    '## 相手側の宿題（相手待ち）', '', '- 設備協力会社から: 消防用設備の着工届の提出', '',
+    '## 原本', '', '- [消防署 事前協議.m4a](#)', '- [文字起こし](#)',
   ].join('\n');
-  DEMO_DOCS['doc-r2'] = '# ' + B(-8) + ' 施主打合せ｜第3回 レイアウト定例\n\n## 概要\n\nA案とB案を比較。動線と待合の広さから B案で進める方向。\n\n## 決定事項\n\n- レイアウトは B案をベースに進める\n\n## 相手側の宿題（相手待ち）\n\n- 港北会から: 処置室の広さについて院長の最終判断\n';
-  DEMO_DOCS['doc-r3'] = '# ' + B(-10) + ' 現場確認｜上棟後の構造金物チェック\n\n## 概要\n\n金物の取付状況を確認。2箇所でビス不足を指摘し是正を依頼。\n';
+  DEMO_DOCS['doc-r2'] = '# ' + B(-6) + ' 発注者打合せ｜港北クリニック 第3回定例\n\n## 概要\n\n' + records[1].summary + '\n\n## 決定事項\n\n- 引渡し日は' + md_(B(25)) + 'を死守する\n\n## 相手側の宿題（相手待ち）\n\n- 港北会から: 処置室の広さについて院長の最終判断\n';
+  DEMO_DOCS['doc-r3'] = '# ' + B(-3) + ' 工程会議・職長会｜桜台 職長会（4F躯体・揚重計画）\n\n## 概要\n\n' + records[2].summary + '\n\n## 決定事項\n\n- 打設日の生コン車は敷地内の東側ヤードで待機させる\n\n## 本人のタスク（提案）\n\n- [ ] 4F打設日の道路使用許可を青葉警察署へ申請する 📅 ' + B(1) + ' ⏫ 🆔 t-4\n';
   DEMO_PROJECT_DOCS['P-2026-001'] = {
     overview: [
-      '# P-2026-001 桜台三丁目 共同住宅新築', '', '> 最終更新: ' + B(0), '',
-      '## 基本情報', '', '| 項目 | 内容 |', '|---|---|', '| 施主 | 桜台ハウジング株式会社 |', '| 所在地 | 横浜市青葉区桜台三丁目 |', '| 用途・規模 | 共同住宅 RC造5階 24戸 |', '| フェーズ | 確認申請（審査中） |', '| 主な関係者 | 構造: 湘南構造設計／設備: 未定／審査: 横浜市 建築局 審査課 |', '',
-      '## 現在の状況', '', '確認申請の審査中で、' + md_(B(0)) + 'に指摘事項4件を受領（回答期限 ' + md_(B(6)) + '）。事前相談で示された敷地内通路幅員 1.5m の確保が回答の前提となっており、外構計画の見直しが急ぎ。構造図は Rev.C に更新され、3階天井高の確認が残る。', '',
-      '## 直近のマイルストーン', '', '- ' + md_(B(2)) + ' 設計定例（施主・構造・設備）［予定］', '- ' + md_(B(6)) + ' 指摘事項 回答期限［確定］', '',
-      '## 懸案・未決事項', '', '- 敷地内通路幅員 1.5m の確保（当方）', '- 3階 X3 通り 天井高 2,400 の確保（当方→構造）', '- 基礎伏図 Rev.C の受領（構造設計）', '',
-      '## 行政協議の状況', '', '| 協議先 | 論点 | 最新の結論 |', '|---|---|---|', '| 建築指導課 | 日影 | GL+4m で再検討（' + md_(B(-6)) + '） |', '| 建築指導課 | 敷地内通路 | 1.5m 以上必須（' + md_(B(-6)) + '） |', '| 建築指導課 | 壁面後退 | 庇のみ緩和可、継続協議 |',
+      '# P-2026-001 (仮称)桜台三丁目共同住宅新築工事', '', '> 最終更新: ' + B(0), '',
+      '## 基本情報', '', '| 項目 | 内容 |', '|---|---|', '| 発注者 | 桜台ハウジング株式会社 |', '| 工事場所 | 横浜市青葉区桜台三丁目 |', '| 構造・規模 | RC造 地上5階 24戸 |', '| 工期 | 2026年4月〜2027年3月（推定） |', '| フェーズ | 躯体工事（4F） |', '| 設計・監理 | 〇〇設計事務所（監理: 山口氏） |', '| 主な協力会社 | 鉄筋・型枠・生コン各社、湘南設備工業 |', '',
+      '## 現在の状況', '', '4F躯体の施工中。' + md_(B(0)) + 'に3Fスラブ配筋検査の指摘3件を受領し、是正報告の期限は' + md_(B(5)) + '。4F床の打設（' + md_(B(7)) + '予定）に向けて、道路使用許可と近隣への説明が急ぎ。消防の事前協議で誘導灯1台の追加が決まった。', '',
+      '## 直近のマイルストーン', '', '- ' + md_(B(2)) + ' 監理者定例［予定］', '- ' + md_(B(5)) + ' 配筋是正報告の期限［確定］', '- ' + md_(B(7)) + ' 4F床 コンクリート打設［予定］', '',
+      '## 懸案・未決事項', '', '- X3通り開口補強筋の径（監理者のボール）', '- 近隣からの車両待機への苦情対応（当方）', '- 3階避難器具の開口寸法の確認（当方）', '',
+      '## 行政・検査の状況', '', '| 協議先 | 論点 | 最新の結論 |', '|---|---|---|', '| 青葉消防署 | 誘導灯 | 廊下突き当たりに1台追加（' + md_(B(-4)) + '） |', '| 青葉消防署 | 避難器具 | 3階開口寸法を確認して報告 |', '| 青葉警察署 | 道路使用許可 | 申請準備中 |',
     ].join('\n'),
-    decisions: '# 決定事項ログ\n\n- ' + B(-6) + ' ｜ 日影規制の測定面は GL+4m で検討する（出典: 建築指導課 事前相談）\n',
-    attachments: '# 添付台帳\n\n| 日付 | ファイル | 種類 | 図番 | 版 | 要約 |\n|---|---|---|---|---|---|\n| ' + B(0) + ' | 指摘事項一覧.pdf | 行政文書 |  |  | 指摘事項4件 |\n| ' + B(-1) + ' | 構造図_RevC.pdf | 図面 | S-201〜S-215 | Rev.C | 伏図・軸組図一式 |\n| ' + B(-1) + ' | S-201_RevC.dwg | 図面 | S-201 | Rev.C | CADデータ（解析対象外） |\n',
+    decisions: '# 決定事項ログ\n\n- ' + B(-4) + ' ｜ 廊下突き当たりに誘導灯を1台追加する（出典: 青葉消防署 事前協議）\n- ' + B(-3) + ' ｜ 打設日の生コン車は敷地内の東側ヤードで待機させる（出典: 職長会）\n',
+    attachments: '# 添付台帳\n\n| 日付 | ファイル | 種類 | 図番 | 版 | 要約 |\n|---|---|---|---|---|---|\n| ' + B(0) + ' | 配筋検査指摘事項_3F.pdf | 検査・品質記録 |  |  | 指摘3件と是正期限 |\n',
   };
 
   const db = {
     version: 1, updatedAt: new Date().toISOString(), projects, threads: {}, mails, records, tasks, decisions, events,
-    noise: { 'news@kenchiku-media.example.com': 14, 'info@seminar-portal.example.jp': 9, 'mag@buildmaterials.example.com': 6 },
-    brief, usage: {}, log: [{ at: new Date().toISOString(), level: 'info', msg: '新規案件を提案: P-2026-004 緑ヶ丘 倉庫の用途変更' }],
-    owner: { name: '' }, config: { model: 'claude-opus-5' },
+    noise: { 'news@kenzai-media.example.com': 14, 'info@seminar-portal.example.jp': 9, 'mag@buildmaterials.example.com': 6 },
+    brief, log: [{ at: new Date().toISOString(), level: 'info', msg: '新規案件を提案: P-2026-004 (仮称)緑ヶ丘倉庫改修工事' }],
+    owner: { name: '' }, config: { engine: 'Claude Code（クラウド）' },
+    queue: { pending: 3, byType: { mail: 2, record: 1 }, oldest: new Date(Date.now() - 50 * 60e3).toISOString(), lastResultAt: new Date(Date.now() - 65 * 60e3).toISOString(), applied: 128 },
   };
-  const m0 = new Date();
-  for (let i = 2; i >= 0; i--) {
-    const d = new Date(m0.getFullYear(), m0.getMonth() - i, 1);
-    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-    db.usage[key] = { in: [2.1e6, 3.4e6, 1.2e6][2 - i], out: [3.1e5, 4.6e5, 1.7e5][2 - i], usd: [18.2, 28.5, 10.4][2 - i] };
-  }
   S.db = db;
   recount();
   db.projects.forEach(p => { p.lastActivity = [].concat(mails.filter(m => m.projectId === p.id).map(m => m.date.slice(0, 10)), records.filter(r => r.projectId === p.id).map(r => r.date)).sort().pop() || ''; });

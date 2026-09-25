@@ -1,32 +1,39 @@
 /**
- * 添付ファイルの解釈
+ * 添付ファイルの読み方（ジョブに書き込む指示）
  *
- *   PDF（図面・申請書・見積書・議事録・スキャン）… Claude に PDF のまま渡す（文字＋画像を両方読む）
- *   画像 JPG/PNG/GIF/WebP                      … Claude に画像として渡す（現場写真・手書きメモ・図面の写真）
- *   Word / Excel / PowerPoint                  … Google 形式に一時変換してテキスト化（Excel は全シートを CSV 化）
- *   テキスト / CSV / ICS / EML                  … そのまま文字として渡す（Shift_JIS も判定）
- *   ZIP                                         … 展開して中身を同じルールで処理（1階層まで）
- *   CAD / BIM（DWG, JWW, DXF, SFC, RVT, IFC…）  … 解析しない。ファイル名から図番・版を記録（同送PDFを解析）
- *   HEIC / 動画 / 音声 / その他                 … メタ情報のみ記録
+ *   PDF / Word(docx,doc) / Excel(xlsx) / PowerPoint(pptx) / PNG / JPEG
+ *       … Claude Code が Google Drive コネクタの read_file_content で直接読む（fileId をジョブに記載）
+ *   テキスト / CSV / ICS / EML、旧形式の xls・ppt
+ *       … Apps Script がテキスト化してジョブに直接書き込む（xls は全シートを CSV 化）
+ *   ZIP … Apps Script が展開して Drive に置き、中身を同じ規則で扱う
+ *   CAD / BIM（DWG, JWW, DXF, SFC, RVT, IFC…）… 解析しない。ファイル名から図番・版だけ推定
+ *   HEIC / 動画 / 音声 / その他 … メタ情報のみ
  */
 
 const KIND_BY_EXT = {
   pdf: 'pdf',
-  jpg: 'image', jpeg: 'image', png: 'image', gif: 'image', webp: 'image',
+  jpg: 'image', jpeg: 'image', png: 'image', gif: 'image-other', webp: 'image-other',
   heic: 'heic', heif: 'heic',
-  doc: 'word', docx: 'word', rtf: 'word',
-  xls: 'excel', xlsx: 'excel', xlsm: 'excel',
-  ppt: 'ppt', pptx: 'ppt',
-  txt: 'text', md: 'text', csv: 'csv', tsv: 'csv', ics: 'text', eml: 'text', json: 'text', xml: 'text', html: 'text', htm: 'text',
+  docx: 'word', doc: 'word', rtf: 'text-convert',
+  xlsx: 'excel', xls: 'excel-old', xlsm: 'excel-old',
+  pptx: 'ppt', ppt: 'ppt-old',
+  txt: 'text', md: 'text', csv: 'text', tsv: 'text', ics: 'text', eml: 'text', json: 'text', xml: 'text', html: 'text', htm: 'text',
   zip: 'zip',
   dwg: 'cad', dxf: 'cad', jww: 'cad', jwc: 'cad', sfc: 'cad', p21: 'cad',
   rvt: 'bim', ifc: 'bim', skp: 'bim', '3dm': 'bim', vwx: 'bim', pln: 'bim',
-  m4a: 'audio', mp3: 'audio', wav: 'audio', aac: 'audio', ogg: 'audio', webm: 'audio',
+  m4a: 'audio', mp3: 'audio', wav: 'audio', aac: 'audio', ogg: 'audio', flac: 'audio', webm: 'audio',
   mp4: 'video', mov: 'video',
-  msg: 'other',
 };
 
-const IMAGE_MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+// read_file_content が扱える形式と、その正しい MIME
+const READABLE_MIME = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  doc: 'application/msword',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+};
 
 function ext_(name) {
   const m = String(name).toLowerCase().match(/\.([a-z0-9]+)$/);
@@ -37,76 +44,75 @@ function kindOf_(name) {
   return KIND_BY_EXT[ext_(name)] || 'other';
 }
 
-/**
- * 添付 Blob 群を Claude の content ブロックに変換する
- * @param {Array<{name:string, blob:Blob}>} items
- * @return {{blocks:Array, meta:Array<{name, kind, size, note}>}}
- */
-function attachmentParts_(items) {
-  const state = { blocks: [], meta: [], binaryBytes: 0, index: 0 };
-  items.forEach(it => addAttachment_(state, it.name, it.blob, 0));
-  return { blocks: state.blocks, meta: state.meta };
+/** ZIP を展開し、中身を「<key>__<zip名>__<中身>」として同じフォルダに置く。元の ZIP も残す */
+function expandZips_(files, key, folder) {
+  const out = [];
+  files.forEach(f => {
+    out.push(f);
+    if (kindOf_(f.getName()) !== 'zip') return;
+    try {
+      Utilities.unzip(f.getBlob().setContentType('application/zip'))
+        .filter(e => !/\/$/.test(e.getName()))
+        .slice(0, 15)
+        .forEach(e => {
+          const base = e.getName().split('/').pop();
+          out.push(folder.createFile(e.setName(key + '__' + f.getName().slice(key.length + 2).replace(/\.zip$/i, '') + '__' + base)));
+        });
+    } catch (err) {
+      console.warn('ZIP を展開できません: ' + f.getName() + ' ' + err);
+    }
+  });
+  return out;
 }
 
-function addAttachment_(state, name, blob, depth) {
-  const kind = kindOf_(name);
-  const size = blob.getBytes().length;
-  const meta = { name: name, kind: kind, size: size, note: '' };
-  state.meta.push(meta);
-  const label = n => ({ type: 'text', text: '【添付' + (++state.index) + '】' + name + '（' + kind + ', ' + Math.round(size / 1024) + 'KB）' + (n ? ' ※' + n : '') });
+/**
+ * 添付の一覧をジョブ用の文章にする
+ * @param {Array<File>} files  PA が保存した添付（名前は <key>__<元の名前>）
+ * @return {{text:string, items:Array<{name, kind, fileId, size, note}>}}
+ */
+function describeAttachments_(files, key) {
+  const items = [];
+  const lines = [];
+  files.forEach((f, i) => {
+    const name = f.getName().slice(key.length + 2).replace(/__/g, ' > ');
+    const kind = kindOf_(name);
+    const size = f.getSize();
+    const item = { name: name, kind: kind, fileId: f.getId(), size: size, note: '' };
+    items.push(item);
+    const head = (i + 1) + '. ' + name + '（' + Math.round(size / 1024) + 'KB）';
+    try {
+      if (kind === 'image' && size < CONFIG.MIN_IMAGE_BYTES) {
+        item.note = '小さい画像（署名ロゴ等）のためスキップ';
+        lines.push(head + ' ｜ 読み方: 不要（' + item.note + '）');
+      } else if (READABLE_MIME[ext_(name)]) {
+        fixMime_(f, READABLE_MIME[ext_(name)]);
+        lines.push(head + ' ｜ 読み方: read_file_content（fileId: ' + f.getId() + '）');
+      } else if (kind === 'text') {
+        lines.push(head + ' ｜ 読み方: 下のテキスト', '~~~', clip_(decodeText_(f.getBlob())), '~~~');
+      } else if (kind === 'excel-old' || kind === 'ppt-old' || kind === 'text-convert') {
+        lines.push(head + ' ｜ 読み方: 下のテキスト（Apps Script で変換）', '~~~', clip_(officeToText_(f.getBlob(), kind)), '~~~');
+      } else if (kind === 'zip') {
+        lines.push(head + ' ｜ ZIP（中身は後続の項目として展開済み）');
+      } else {
+        item.note = {
+          cad: 'CAD データは解析対象外。ファイル名から図番・版のみ推定する',
+          bim: 'BIM データは解析対象外。ファイル名から情報のみ推定する',
+          heic: 'HEIC は読めない（iPhone の カメラ > フォーマット を「互換性優先」にすると JPEG になる）',
+        }[kind] || '中身は読めない。ファイル名と種類だけ記録する';
+        lines.push(head + ' ｜ 読み方: 不可（' + item.note + '）');
+      }
+    } catch (err) {
+      item.note = '変換エラー: ' + err;
+      lines.push(head + ' ｜ 読み方: 不可（' + item.note + '）');
+    }
+  });
+  return { text: lines.join('\n') || 'なし', items: items };
+}
 
-  try {
-    if (kind === 'pdf') {
-      if (size > CONFIG.MAX_PDF_BYTES || state.binaryBytes + size > CONFIG.MAX_TOTAL_BINARY_BYTES) {
-        meta.note = 'サイズ超過のため未解析';
-        state.blocks.push(label(meta.note));
-        return;
-      }
-      state.binaryBytes += size;
-      state.blocks.push(label());
-      state.blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: Utilities.base64Encode(blob.getBytes()) } });
-      return;
-    }
-    if (kind === 'image') {
-      if (size < CONFIG.MIN_IMAGE_BYTES) { meta.note = '小さい画像（署名ロゴ等）のためスキップ'; return; }
-      if (size > CONFIG.MAX_IMAGE_BYTES || state.binaryBytes + size > CONFIG.MAX_TOTAL_BINARY_BYTES) {
-        meta.note = 'サイズ超過のため未解析';
-        state.blocks.push(label(meta.note));
-        return;
-      }
-      state.binaryBytes += size;
-      state.blocks.push(label());
-      state.blocks.push({ type: 'image', source: { type: 'base64', media_type: IMAGE_MIME[ext_(name)], data: Utilities.base64Encode(blob.getBytes()) } });
-      return;
-    }
-    if (kind === 'word' || kind === 'excel' || kind === 'ppt') {
-      state.blocks.push(label());
-      state.blocks.push({ type: 'text', text: clip_(officeToText_(blob, kind)) });
-      return;
-    }
-    if (kind === 'text' || kind === 'csv') {
-      state.blocks.push(label());
-      state.blocks.push({ type: 'text', text: clip_(decodeText_(blob)) });
-      return;
-    }
-    if (kind === 'zip' && depth === 0) {
-      const entries = Utilities.unzip(blob.setContentType('application/zip'));
-      state.blocks.push(label('ZIP内 ' + entries.length + ' ファイル: ' + entries.map(e => e.getName()).join(', ').slice(0, 1000)));
-      entries.filter(e => !/\/$/.test(e.getName())).slice(0, 15).forEach(e => addAttachment_(state, name + ' > ' + e.getName(), e, 1));
-      return;
-    }
-    if (kind === 'cad' || kind === 'bim') {
-      meta.note = 'CAD/BIMデータは解析対象外。ファイル名から図番・版のみ推定';
-    } else if (kind === 'heic') {
-      meta.note = 'HEICは未対応（iPhoneの設定 > カメラ > フォーマット「互換性優先」を推奨）';
-    } else {
-      meta.note = 'メタ情報のみ記録';
-    }
-    state.blocks.push(label(meta.note));
-  } catch (err) {
-    meta.note = '解析エラー: ' + err;
-    state.blocks.push(label(meta.note));
-  }
+/** Power Automate が汎用 MIME で保存した場合に、read_file_content が読めるよう MIME を直す */
+function fixMime_(file, mime) {
+  if (file.getMimeType() === mime) return;
+  try { Drive.Files.update({ mimeType: mime }, file.getId()); } catch (e) { console.warn('MIME を修正できません: ' + file.getName()); }
 }
 
 function clip_(text) {
@@ -121,16 +127,14 @@ function decodeText_(blob) {
   return blob.getDataAsString('Shift_JIS');
 }
 
-/** Office ファイルを Google 形式に一時変換してテキスト化し、一時ファイルは削除する */
+/** 旧形式の Office ファイルを Google 形式に一時変換してテキスト化し、一時ファイルは削除する */
 function officeToText_(blob, kind) {
-  const target = {
-    word: 'application/vnd.google-apps.document',
-    excel: 'application/vnd.google-apps.spreadsheet',
-    ppt: 'application/vnd.google-apps.presentation',
-  }[kind];
+  const target = kind === 'excel-old' ? 'application/vnd.google-apps.spreadsheet'
+    : kind === 'ppt-old' ? 'application/vnd.google-apps.presentation'
+      : 'application/vnd.google-apps.document';
   const tmp = Drive.Files.create({ name: '_tmp_' + blob.getName(), mimeType: target, parents: [folder_(PATHS.SYSTEM + '/_tmp').getId()] }, blob);
   try {
-    if (kind === 'excel') {
+    if (kind === 'excel-old') {
       const ss = SpreadsheetApp.openById(tmp.id);
       return ss.getSheets().map(sh => {
         const values = sh.getDataRange().getDisplayValues().slice(0, CONFIG.MAX_SHEET_ROWS);
@@ -150,7 +154,7 @@ function officeToText_(blob, kind) {
 
 /** 本文中の大容量ファイル転送サービスのリンクを抽出（ダウンロード期限タスクの材料） */
 function transferLinks_(text) {
-  const re = /https?:\/\/[^\s<>"）)]*(gigafile\.nu|xgf\.nu|firestorage\.jp|xfile|filesend|wetransfer\.com|we\.tl|box\.com|dropbox\.com|sharepoint\.com|1drv\.ms|onedrive\.live\.com|drive\.google\.com|cybozu|direct-cloud|filebank|biz-file)[^\s<>"）)]*/ig;
+  const re = /https?:\/\/[^\s<>"）)]*(gigafile\.nu|xgf\.nu|firestorage\.jp|xfile|filesend|wetransfer\.com|we\.tl|box\.com|dropbox\.com|sharepoint\.com|1drv\.ms|onedrive\.live\.com|drive\.google\.com|cybozu|direct-cloud|filebank|biz-file|kizuku|photoruction|andpad|spider-plus)[^\s<>"）)]*/ig;
   const out = [];
   let m;
   while ((m = re.exec(String(text || ''))) && out.length < 10) out.push(m[0]);

@@ -21,7 +21,8 @@ function emptyDb_() {
     events: [],     // { id, title, start, end, place, projectId, source }
     noise: {},      // 送信者アドレス -> 件数（メルマガ判定されたもの）
     brief: null,    // { date, md, fileId }
-    usage: {},      // 'yyyy-MM' -> { in, out, cacheRead, usd }
+    jobs: {},       // jobId -> { type, docId, createdAt, src }（解析キューに出しているジョブ）
+    queue: { lastResultAt: '', applied: 0 },
     log: [],
   };
 }
@@ -42,7 +43,7 @@ function saveDb_(db) {
 
 /**
  * ロックを取って最新の db を読み直し、fn(db) で更新して保存する。
- * Claude 呼び出しなど時間のかかる処理はロックの外で済ませ、反映だけをここで行う。
+ * Drive の読み書きなど時間のかかる処理はロックの外で済ませ、反映だけをここで行う。
  */
 function withDb_(fn) {
   const lock = LockService.getScriptLock();
@@ -59,29 +60,14 @@ function withDb_(fn) {
   }
 }
 
-/* ログと API 使用量はロック外で発生するため、いったん溜めて withDb_ 内で反映する */
-const PENDING_ = { log: [], usage: [] };
+/* ログはロック外で発生するため、いったん溜めて withDb_ 内で反映する */
+const PENDING_ = { log: [] };
 
 function logEvent_(level, msg) {
   PENDING_.log.push({ at: new Date().toISOString(), level: level, msg: String(msg).slice(0, 500) });
 }
 
-function addUsage_(model, usage) {
-  if (usage) PENDING_.usage.push({ model: model, usage: usage });
-}
-
 function flushPending_(db) {
   PENDING_.log.forEach(l => db.log.push(l));
-  PENDING_.usage.forEach(x => {
-    const m = fmt_(new Date(), 'yyyy-MM');
-    const u = db.usage[m] || (db.usage[m] = { in: 0, out: 0, cacheRead: 0, usd: 0 });
-    const p = CONFIG.PRICING[x.model] || CONFIG.PRICING['claude-opus-5'];
-    const input = (x.usage.input_tokens || 0) + (x.usage.cache_creation_input_tokens || 0);
-    const cacheRead = x.usage.cache_read_input_tokens || 0;
-    const out = x.usage.output_tokens || 0;
-    u.in += input; u.out += out; u.cacheRead += cacheRead;
-    u.usd = Math.round((u.usd + (input * p.in + out * p.out + cacheRead * p.cacheRead) / 1e6) * 1000) / 1000;
-  });
   PENDING_.log = [];
-  PENDING_.usage = [];
 }
