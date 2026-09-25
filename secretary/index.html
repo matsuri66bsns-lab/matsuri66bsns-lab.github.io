@@ -198,6 +198,7 @@ footer { border-top: 1px solid var(--line); padding-block: 30px 60px; color: var
       <div class="node"><span class="tag">Apps Script Web アプリ</span><div class="t">ダッシュボード</div><div class="s">自分だけに公開。PC とスマートフォン</div></div>
     </div>
 
+    <div class="note"><b>処理の流れの詳細</b>は<a href="workflow.html">処理フロー図</a>にまとめています（Power Automate と Apps Script がそれぞれ何をするか）。</div>
     <div class="note"><b>役割分担。</b>Apps Script はファイル操作・文字起こし・画面を、Claude Code は判断（分類・要約・タスク分解・カルテ作成）を担います。Claude Code 側の手順書は <code>secretary/agent/AGENT.md</code>、結果の形式は <code>secretary/agent/schemas.json</code> で、Claude Code は保存前に <code>validate.mjs</code> で形式を確かめます。</div>
     <div class="note"><b>反映までの時間。</b>メール受信から最大でおよそ「ルーチンの間隔＋20分」です。1時間おきなら、朝8時に届いたメールは9時台に案件フォルダとダッシュボードに入ります。18時以降に届いたメールは翌朝7時台に反映します。朝の「今日の段取り」は5時半にジョブを作り、7時台のルーチンで作成します（7時20分ごろに表示）。</div>
   </div>
