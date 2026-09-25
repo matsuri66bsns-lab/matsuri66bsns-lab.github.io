@@ -414,6 +414,11 @@ input.inp { width: 100%; }
 .bar-track { height: 10px; border-radius: 4px; background: var(--hover); overflow: hidden; }
 .bar-fill { height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; }
 
+.app.solo { grid-template-columns: minmax(0, 1fr); }
+.setup-wrap { max-width: 560px; margin: 8vh auto 0; }
+.setup-card { border-radius: 24px; padding: 26px 26px 22px; }
+.setup-card h1 { font-size: 24px; margin: 6px 0 4px; }
+.hint { font-size: 12px; color: var(--ink-3); }
 .loading { display: grid; place-items: center; min-height: 60vh; color: var(--ink-3); }
 
 @media (max-width: 1000px) {
@@ -563,6 +568,9 @@ const API = {
     Object.assign(x, p, { id: x.id }); return S.db;
   },
   async runNow() { return IS_GAS ? JSON.parse(await gas('apiRunNow')) : S.db; },
+  async setupState() { return IS_GAS ? JSON.parse(await gas('apiGetSetupState')) : { ready: true, name: '', emails: '', role: 'ゼネコン・工務店の施工管理担当', hasGemini: false, rootUrl: '' }; },
+  async saveSettings(input) { if (!IS_GAS) throw new Error('デモでは保存されません'); return JSON.parse(await gas('apiSaveSettings', input)); },
+  async startBootstrap() { if (!IS_GAS) throw new Error('デモでは実行できません'); return JSON.parse(await gas('apiStartBootstrap')); },
 };
 
 /* ---------------- 汎用 ---------------- */
@@ -977,7 +985,9 @@ VIEWS.status = () => {
   const logs = (S.db.log || []).slice(-15).reverse();
   const typeLabel = { mail: 'メール', record: '記録', daily: '日次', bootstrap_chunk: '初期分析', bootstrap_merge: '初期分析（統合）' };
   return '<div class="page"><div class="page-head"><div class="page-icon" style="background:var(--hover);color:var(--ink-2)">' + ic('gauge') + '</div>' +
-    '<h1 class="page-title">稼働状況</h1><div class="page-sub">解析キューの状態、処理件数、除外した配信元を確認できます。解析はクラウドの Claude Code ルーチンが定期的に行います。</div></div>' +
+    '<h1 class="page-title">稼働状況</h1><div class="page-sub">解析キューの状態、処理件数、除外した配信元を確認できます。解析はクラウドの Claude Code ルーチンが定期的に行います。</div>' +
+    '<div class="actions" style="margin-top:12px"><button class="btn sm" data-act="settings">設定（氏名・アドレス・Gemini キー）</button>' +
+    '<button class="btn sm" data-act="start-bootstrap" title="Power Automate のフロー C で 00_inbox/bootstrap に過去メールを書き出してから実行します">過去メールの初期分析を始める</button></div></div>' +
     '<div class="stats">' +
       '<div class="stat" style="cursor:default"><span class="lbl"><span class="sdot" style="background:var(--accent)"></span>解析待ち</span><span class="val">' + (q.pending || 0) + '<small>件</small></span></div>' +
       '<div class="stat" style="cursor:default"><span class="lbl">最後に反映した解析</span><span class="val" style="font-size:16px;padding-top:6px">' + (q.lastResultAt ? md_(isoLocal(q.lastResultAt)) + ' ' + timeOf(isoLocal(q.lastResultAt)) : '—') + '</span></div>' +
@@ -1167,6 +1177,34 @@ function newTaskModal() {
   setTimeout(() => $('#n-title').focus(), 50);
 }
 
+/* ---------------- 初期設定・設定 ---------------- */
+function settingsFormHtml(st, first) {
+  return '<div class="form">' +
+    '<label>氏名<input class="inp" id="st-name" value="' + esc(st.name) + '" placeholder="例: 山田 太郎" autocomplete="name"></label>' +
+    '<label>業務用メールアドレス（Outlook。複数あればカンマ区切り）<input class="inp" id="st-emails" value="' + esc(st.emails) + '" placeholder="例: t-yamada@example.co.jp" autocomplete="email"></label>' +
+    '<label>立場<input class="inp" id="st-role" value="' + esc(st.role) + '"></label>' +
+    '<label>Gemini API キー（音声の文字起こし用）<input class="inp" id="st-gemini" type="password" autocomplete="off" placeholder="' + (st.hasGemini ? '設定済み（変更するときだけ入力）' : 'AIza… で始まるキー') + '">' +
+      '<span class="hint">Google AI Studio（aistudio.google.com）の「Get API key」で発行します。あとから入力しても構いません。</span></label>' +
+    '<div class="actions"><button class="btn primary" data-act="save-settings" data-first="' + (first ? '1' : '') + '">' + (first ? '保存して開始する' : '保存') + '</button>' +
+    (first ? '' : '<button class="btn ghost" data-act="close">キャンセル</button>') + '</div>' +
+    (st.rootUrl ? '<p class="hint" style="margin-top:14px">データの保存先: <a href="' + esc(st.rootUrl) + '" target="_blank" rel="noopener">Google Drive「秘書AI」フォルダ</a></p>' : '') +
+  '</div>';
+}
+
+function renderSetup(st) {
+  ['#sidebar', '#topbar', '#tabbar', '#fab'].forEach(q => { $(q).hidden = true; });
+  document.querySelector('.app').classList.add('solo');
+  $('#view').innerHTML = '<div class="setup-wrap"><div class="setup-card glass">' +
+    '<div class="page-icon" style="background:var(--accent-soft);color:var(--accent)">' + ic('spark') + '</div>' +
+    '<h1>秘書AI の初期設定</h1>' +
+    '<p class="page-sub" style="margin:0 0 18px">保存すると、Google Drive に「秘書AI」フォルダが作られ、10分おきの取り込みと毎朝の段取り作成が始まります。</p>' +
+    settingsFormHtml(st, true) + '</div></div>';
+}
+
+function settingsModal() {
+  openModal('<h3>設定</h3>' + settingsFormHtml(S.setup || { name: '', emails: '', role: '', hasGemini: false, rootUrl: '' }, false));
+}
+
 /* ---------------- 検索（⌘K） ---------------- */
 function openPalette() {
   $('#overlay').innerHTML = '<div class="scrim" data-act="close"></div><div class="palette glass" role="dialog" aria-label="検索"><input id="pal-q" placeholder="タスク・案件・メール・記録・決定事項を検索" autocomplete="off"><div class="palette-list" id="pal-list"></div></div>';
@@ -1275,6 +1313,27 @@ document.addEventListener('click', async e => {
         try { const msg = await API.upload(Object.assign(base, { name: f.name, mimeType: f.type, base64: b64 })); closeOverlay(); toast(msg); }
         catch (err) { el.disabled = false; el.textContent = '登録する'; toast('エラー: ' + err); }
       }
+      break;
+    }
+    case 'settings': settingsModal(); break;
+    case 'save-settings': {
+      const input = { name: $('#st-name').value, emails: $('#st-emails').value, role: $('#st-role').value, geminiKey: $('#st-gemini').value };
+      el.disabled = true; el.textContent = '保存しています…（初回は1分ほど）';
+      try {
+        S.setup = await API.saveSettings(input);
+        if (el.dataset.first) {
+          S.db = await API.getDb();
+          ['#sidebar', '#topbar', '#tabbar', '#fab'].forEach(q => { $(q).hidden = false; });
+          document.querySelector('.app').classList.remove('solo');
+          go('home'); toast('初期設定が終わりました');
+        } else { closeOverlay(); toast('保存しました'); }
+      } catch (err) { el.disabled = false; el.textContent = el.dataset.first ? '保存して開始する' : '保存'; toast('エラー: ' + err); }
+      break;
+    }
+    case 'start-bootstrap': {
+      el.disabled = true;
+      try { S.db = await busy('過去メールから解析ジョブを作っています…', () => API.startBootstrap()); render(); toast('初期分析のジョブを作りました。ルーチンが順に処理します'); }
+      catch (err) { el.disabled = false; toast('エラー: ' + err); }
       break;
     }
     case 'edit-project': projectModal(id); break;
@@ -1457,6 +1516,8 @@ function sampleDb() {
 (async function boot() {
   try {
     S.demo = !IS_GAS;
+    S.setup = await API.setupState();
+    if (!S.setup.ready) { renderSetup(S.setup); return; }
     S.db = await API.getDb();
     const hash = (location.hash || '').slice(1);
     if (hash && VIEWS[hash]) S.view = hash;
