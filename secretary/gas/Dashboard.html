@@ -44,7 +44,7 @@
   --t-pink-bg: #F5E0E9; --t-pink: #8C3558;
   --t-red-bg: #FFE2DD; --t-red: #9B2C23;
   --radius: 14px;
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  --font: "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
@@ -506,8 +506,24 @@ const ICONS = {
   alert: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/>',
   board: '<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="13" rx="1.5"/>',
   list: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.5M4 12h.5M4 18h.5"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
+  moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  auto: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor"/>',
 };
 const ic = (n, cls) => '<svg class="' + (cls || '') + '" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[n] + '</svg>';
+
+/* ---------------- テーマ（自動 / ライト / ダーク） ---------------- */
+const THEMES = { auto: ['auto', '自動（端末の設定に合わせる）'], light: ['sun', 'ライト'], dark: ['moon', 'ダーク'] };
+const THEME_ORDER = ['auto', 'light', 'dark'];
+let theme = 'auto';
+try { theme = localStorage.getItem('secretary-theme') || 'auto'; } catch (e) {}
+if (!THEMES[theme]) theme = 'auto';
+function applyTheme() {
+  // auto のときは属性を外し、CSS の prefers-color-scheme に任せる
+  if (theme === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', theme);
+}
+applyTheme();
 
 const CAT_COLOR = {
   '発注者対応': 'orange', '設計・監理者対応': 'purple', '行政・官公庁': 'blue', '協力会社・発注': 'brown', '工程・現場調整': 'pink',
@@ -719,6 +735,7 @@ function renderShell() {
   if (S.view === 'project') { const p = proj(S.params.id); crumb = '案件 / <b>' + esc(p ? p.name : '') + '</b>'; }
   $('#topbar').innerHTML = '<div class="crumb">' + crumb + '</div><div class="spacer"></div>' +
     '<button class="btn search-btn" data-act="search">' + ic('search') + '<span class="lbl">検索</span><span class="kbd">⌘K</span></button>' +
+    '<button class="btn ghost" data-act="theme" title="テーマ: ' + THEMES[theme][1] + '" aria-label="テーマ切替（現在: ' + THEMES[theme][1] + '）">' + ic(THEMES[theme][0]) + '</button>' +
     '<button class="btn ghost hide-sm" data-act="run-now" title="Claude Code の解析結果を取り込み、新しいメール・記録を解析キューに入れます">' + ic('refresh') + '結果を取り込む</button>' +
     '<button class="btn primary" data-act="add-record">' + ic('plus') + '<span class="hide-sm">記録を追加</span></button>';
 
@@ -1246,6 +1263,11 @@ document.addEventListener('click', async e => {
   // 行の中のボタン・チップは行のクリックより優先
   if (act !== 'close') e.stopPropagation();
   switch (act) {
+    case 'theme':
+      theme = THEME_ORDER[(THEME_ORDER.indexOf(theme) + 1) % THEME_ORDER.length];
+      try { localStorage.setItem('secretary-theme', theme); } catch (e) {}
+      applyTheme(); renderShell(); toast('テーマ: ' + THEMES[theme][1]);
+      break;
     case 'nav':
       closeOverlay();
       if (el.dataset.view === 'tasks-waiting') { S.taskFilter.owner = 'other'; S.taskMode = 'list'; go('tasks'); }
