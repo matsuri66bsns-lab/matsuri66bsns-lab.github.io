@@ -1,0 +1,52 @@
+{
+  "is_noise": false,
+  "noise_reason": "",
+  "project_id": "P-2026-001",
+  "project_confidence": "high",
+  "new_project": { "name": "", "client": "", "location": "", "phase": "", "aliases": [] },
+  "category": "設計・監理者対応",
+  "phase": "躯体工事",
+  "title": "3階スラブ配筋検査の指摘3件（是正報告は10/2まで）",
+  "summary": "監理者より3階スラブ配筋検査の指摘事項3件を受領。開口補強筋の不足、かぶり厚さ不足、スペーサー間隔の是正を求められている。是正報告の期限は10/2(金)、コンクリート打設は10/6(火)予定。",
+  "key_points": ["指摘3件（開口補強筋・かぶり厚さ・スペーサー間隔）", "是正報告の期限 10/2(金)", "打設予定 10/6(火)"],
+  "decisions": [],
+  "open_issues": ["X3通り開口部の補強筋径（D13かD16か）を監理者に確認中"],
+  "reply_needed": true,
+  "my_tasks": [
+    {
+      "title": "3階スラブ配筋検査の指摘3件を是正し、写真を添えて監理者へ報告する",
+      "why": "監理者から是正報告の依頼。期限は10/2(金)、10/6(火)の打設前に完了が必要。",
+      "priority": "high",
+      "due": "2026-10-01",
+      "due_basis": "本文に是正報告の期限10/2(金)と明記 → 期限の1営業日前に提出",
+      "estimate_min": 240,
+      "confidence": "high",
+      "subtasks": [
+        { "title": "指摘3件の是正内容を鉄筋業者の職長へ指示する", "due": "2026-09-28", "estimate_min": 30 },
+        { "title": "開口補強筋の径を監理者に質疑で確認する", "due": "2026-09-28", "estimate_min": 20 },
+        { "title": "是正状況を確認し、写真を撮影する", "due": "2026-09-30", "estimate_min": 90 },
+        { "title": "是正報告書を作成して所長の確認を受け、監理者へ提出する", "due": "2026-10-01", "estimate_min": 100 }
+      ]
+    }
+  ],
+  "waiting_on_others": [
+    { "who": "〇〇設計事務所 監理担当", "what": "X3通り開口補強筋の径の回答", "due": "2026-09-29" }
+  ],
+  "completed_task_ids": [],
+  "events": [
+    { "title": "3階スラブ コンクリート打設", "start": "2026-10-06", "end": "", "place": "現場" }
+  ],
+  "attachments": [
+    {
+      "name": "配筋検査指摘事項_3F.pdf",
+      "doc_type": "検査・品質記録",
+      "summary": "3階スラブ配筋検査の指摘3件と是正期限。",
+      "drawing_no": "",
+      "revision": "",
+      "key_values": [{ "label": "指摘件数", "value": "3件" }, { "label": "是正報告期限", "value": "2026-10-02" }]
+    }
+  ],
+  "people": [
+    { "name": "山口", "org": "〇〇設計事務所", "role": "監理担当", "email": "" }
+  ]
+}

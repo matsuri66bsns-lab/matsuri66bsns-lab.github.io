@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>秘書AI 設計書</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/* ライトモードに振り切った単一テーマ（Apple の製品ページのような白基調） */
+:root {
+  color-scheme: light;
+  --bg: #FFFFFF;
+  --bg-2: #F5F5F7;
+  --ink: #1D1D1F;
+  --ink-2: #515154;
+  --ink-3: #86868B;
+  --line: #E3E3E8;
+  --accent: #0066CC;
+  --accent-soft: #E8F1FB;
+  --green: #1D8A5B;
+  --amber: #B26A00;
+  --red: #C8322F;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.8 var(--font); -webkit-font-smoothing: antialiased; font-feature-settings: "palt" 1; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+code { background: var(--bg-2); border-radius: 5px; padding: 1px 6px; overflow-wrap: anywhere; }
+
+.localnav {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+  background: rgba(255,255,255,0.78); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--line);
+}
+.localnav-in { max-width: 1080px; margin: 0 auto; padding: 0 22px; display: flex; align-items: center; gap: 22px; height: 52px; }
+.localnav b { font-size: 19px; font-weight: 700; white-space: nowrap; }
+.localnav nav { display: flex; gap: 18px; overflow-x: auto; font-size: 12.5px; scrollbar-width: none; }
+.localnav nav a { color: var(--ink-2); white-space: nowrap; }
+.localnav .cta { margin-left: auto; background: var(--accent); color: #fff; border-radius: 999px; padding: 3px 13px; font-size: 12.5px; white-space: nowrap; }
+.localnav .cta:hover { text-decoration: none; filter: brightness(1.08); }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 22px; }
+.narrow { max-width: 760px; }
+.hero { padding-block: 72px 44px; text-align: center; }
+.eyebrow { font-size: 14px; color: var(--amber); font-weight: 500; letter-spacing: 0.04em; }
+.hero h1 { font-size: clamp(34px, 6vw, 56px); line-height: 1.15; margin: 10px 0 18px; letter-spacing: -0.005em; text-wrap: balance; }
+.hero p { font-size: clamp(17px, 2.2vw, 21px); color: var(--ink-2); max-width: 720px; margin: 0 auto; line-height: 1.7; }
+.hero-links { display: flex; gap: 14px; justify-content: center; margin-top: 26px; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 10px 20px; font-size: 15px; border: 1px solid var(--accent); }
+.pill.fill { background: var(--accent); color: #fff; }
+.pill:hover { text-decoration: none; filter: brightness(1.05); }
+
+section { padding-block: 64px; border-top: 1px solid var(--line); }
+section.tint { background: var(--bg-2); border-top: 0; }
+.sec-no { font-family: var(--mono); font-size: 13px; color: var(--ink-3); }
+h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.25; margin: 6px 0 14px; text-wrap: balance; }
+h3 { font-size: 20px; margin: 34px 0 8px; line-height: 1.45; }
+h4 { font-size: 16px; margin: 22px 0 6px; }
+.lead { font-size: 18px; color: var(--ink-2); max-width: 760px; }
+p { margin: 10px 0; }
+ul, ol { padding-left: 1.3em; }
+li { margin: 4px 0; }
+.note { font-size: 14px; color: var(--ink-2); background: var(--bg-2); border-radius: 14px; padding: 14px 18px; margin: 16px 0; }
+section.tint .note { background: #fff; }
+.note.warn { background: #FFF6E5; color: #5E4200; }
+.note b { color: var(--ink); }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
+.card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; }
+section.tint .card { border-color: transparent; }
+.card h4 { margin: 0 0 6px; font-size: 16.5px; }
+.card p { font-size: 14.5px; color: var(--ink-2); margin: 0; }
+.card .k { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+
+/* 構成図 */
+.flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin-top: 30px; align-items: stretch; }
+.node { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 14px 16px; position: relative; margin-right: 26px; }
+.node:last-child { margin-right: 0; }
+.node:not(:last-child)::after { content: "→"; position: absolute; right: -22px; top: 50%; transform: translateY(-50%); color: var(--ink-3); font-size: 18px; }
+.node .t { font-weight: 700; font-size: 15px; line-height: 1.4; }
+.node .s { font-size: 12.5px; color: var(--ink-2); line-height: 1.6; margin-top: 6px; }
+.node .tag { display: inline-block; font-size: 11px; border-radius: 6px; padding: 0 6px; background: var(--accent-soft); color: var(--accent); margin-bottom: 6px; }
+
+/* 表 */
+.tbl { overflow-x: auto; margin: 16px 0; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.65; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { background: var(--bg-2); font-weight: 500; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+td.nw { white-space: nowrap; }
+
+pre { background: #1D1D1F; color: #F5F5F7; border-radius: 14px; padding: 16px 18px; overflow-x: auto; font: 12.5px/1.7 var(--mono); margin: 12px 0; white-space: pre; }
+pre .c { color: #9A9AA0; }
+.tree { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+.tree .c { color: var(--ink-3); }
+
+.steps { counter-reset: s; list-style: none; padding: 0; display: grid; gap: 10px; }
+.steps > li { counter-increment: s; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px 14px 58px; position: relative; }
+section.tint .steps > li { border-color: transparent; }
+.steps > li::before { content: counter(s); position: absolute; left: 18px; top: 14px; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: #fff; font: 500 13px/26px var(--mono); text-align: center; }
+.steps > li b { display: block; margin-bottom: 2px; }
+.steps > li .d { font-size: 14.5px; color: var(--ink-2); }
+
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.status-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0; font-size: 14px; }
+.st { border-radius: 999px; padding: 3px 12px; background: var(--bg-2); }
+.st.a { background: var(--accent-soft); color: var(--accent); }
+.st.g { background: #E4F4EC; color: var(--green); }
+.arrow { color: var(--ink-3); }
+
+/* 回答の反映表 */
+.ans td:first-child { white-space: nowrap; color: var(--ink-2); }
+.tag-ok { display: inline-block; font-size: 12px; border-radius: 999px; padding: 0 9px; background: #E4F4EC; color: var(--green); white-space: nowrap; }
+.tag-chg { display: inline-block; font-size: 12px; border-radius: 999px; padding: 0 9px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.lane { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin: 26px 0 -14px; }
+
+footer { border-top: 1px solid var(--line); padding-block: 30px 60px; color: var(--ink-3); font-size: 13px; }
+
+@media (max-width: 860px) {
+  .flow { grid-template-columns: minmax(0, 1fr); gap: 26px; }
+  .node { margin-right: 0; }
+  .node:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -24px; transform: none; }
+  .two { grid-template-columns: minmax(0, 1fr); }
+  section { padding-block: 48px; }
+  .localnav nav { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="localnav"><div class="localnav-in">
+  <b>秘書AI</b>
+  <nav>
+    <a href="#answers">回答の反映</a><a href="#arch">全体構成</a><a href="#grain">粒度と分類</a><a href="#attach">添付の読み方</a><a href="#records">打合せ記録</a>
+    <a href="#tasks">タスク提案</a><a href="#dash">ダッシュボード</a><a href="#setup">導入手順</a><a href="#usage">実行間隔と利用量</a><a href="#risk">注意点</a>
+  </nav>
+  <a class="cta" href="#setup">導入手順</a>
+</div></div>
+
+<header class="wrap hero">
+  <div class="eyebrow">設計書・提案書　第2版　2026年9月</div>
+  <h1>メールと打合せから、<br>現場の段取りを組み立てる秘書。</h1>
+  <p>Outlook の業務メールと、官公庁協議・発注者打合せ・職長会の記録を、クラウドで動く Claude Code が定期的に読みます。案件ごとの Markdown に整理し続け、あなたがやるべきことを期日付きの段取りに分解して提案します。</p>
+  <div class="hero-links">
+    <a class="pill fill" href="gas/Dashboard.html">ダッシュボードのデモを開く</a>
+    <a class="pill" href="#setup">導入手順を見る</a>
+  </div>
+</header>
+
+<section class="tint" id="answers">
+  <div class="wrap">
+    <div class="sec-no">00</div>
+    <h2>いただいた回答と反映内容</h2>
+    <div class="tbl"><table class="ans">
+      <thead><tr><th>項目</th><th>回答</th><th>反映したこと</th></tr></thead>
+      <tbody>
+        <tr><td>立場</td><td>ゼネコン・工務店（施工管理）</td><td><span class="tag-chg">変更</span> 種別・フェーズ・記録の種類を施工管理向けに作り直し、タスク分解の例（検査是正、施工図承認、変更見積、道路使用許可など）も差し替えました。</td></tr>
+        <tr><td>Google アカウント</td><td>個人の Google アカウント</td><td><span class="tag-ok">そのまま</span> 保存先はマイドライブの「秘書AI」フォルダです。</td></tr>
+        <tr><td>社内規程</td><td>確認済み（問題なし）</td><td><span class="tag-ok">そのまま</span></td></tr>
+        <tr><td>モデル</td><td>Claude Sonnet 5</td><td><span class="tag-chg">変更</span> 解析を行う Claude Code ルーチンのモデルを Sonnet 5 に設定します。API キーは使いません。</td></tr>
+        <tr><td>音声の文字起こし</td><td>Gemini API で自動化</td><td><span class="tag-ok">そのまま</span> Apps Script が Gemini で文字起こししてから解析キューに入れます。</td></tr>
+        <tr><td>タスクの確定</td><td>すべて提案で止める</td><td><span class="tag-ok">そのまま</span> 自動採用はしません（<code>AUTO_ACCEPT_HIGH_CONFIDENCE: false</code>）。</td></tr>
+        <tr><td>初期分析の期間</td><td>6か月</td><td><span class="tag-ok">そのまま</span> フロー C の日数を 180 にします。</td></tr>
+        <tr><td>実行間隔</td><td>7時〜18時の1時間おき</td><td><span class="tag-ok">反映</span> ルーチンは導入完了後に作成します。</td></tr>
+        <tr><td>補足</td><td>API ではなくクラウドの Claude Code で解析</td><td><span class="tag-chg">変更</span> Claude API の呼び出しをすべて外し、Apps Script と Claude Code が Google Drive 上の「解析キュー」で受け渡す構成にしました（次節）。</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section id="arch">
+  <div class="wrap">
+    <div class="sec-no">01</div>
+    <h2>全体構成</h2>
+    <p class="lead">Claude Code はクラウドの定期実行（ルーチン）として動き、Google Drive コネクタで Drive を読み書きします。ただしこのコネクタは<b>新しいファイルの作成と、名前の変更・移動しかできず、既存ファイルの中身を書き換えられません</b>。そこで、.md への追記やダッシュボードの索引の更新は Apps Script に任せ、Claude Code には「読んで考えて、結果を1ファイル書く」ことだけを担当させます。</p>
+
+    <div class="lane">収集とジョブ作成（10分おき）</div>
+    <div class="flow">
+      <div class="node"><span class="tag">Microsoft 365</span><div class="t">Outlook</div><div class="s">受信トレイと送信済みアイテム</div></div>
+      <div class="node"><span class="tag">Microsoft 365</span><div class="t">Power Automate</div><div class="s">配信メールを除外し、本文を JSON に、添付はファイルのまま保存</div></div>
+      <div class="node"><span class="tag">Google Drive</span><div class="t">00_inbox</div><div class="s">mail / attachments / records（音声・メモ・写真）</div></div>
+      <div class="node"><span class="tag">Apps Script</span><div class="t">ジョブ作成</div><div class="s">本文・案件一覧・営業日・添付の fileId をまとめる。音声は Gemini で文字起こし</div></div>
+      <div class="node"><span class="tag">Google Drive</span><div class="t">01_解析キュー/jobs</div><div class="s">「秘書AI_JOB_待機_…」という Google ドキュメント</div></div>
+    </div>
+
+    <div class="lane">解析と反映（ルーチンは7〜18時の1時間おき）</div>
+    <div class="flow">
+      <div class="node"><span class="tag">Claude Code（Sonnet 5）</span><div class="t">解析ルーチン</div><div class="s">ジョブと添付を読み、手順書に沿って結果を作成。形式を検証してから保存</div></div>
+      <div class="node"><span class="tag">Google Drive</span><div class="t">01_解析キュー/results</div><div class="s">「&lt;jobId&gt;.result.json」</div></div>
+      <div class="node"><span class="tag">Apps Script</span><div class="t">反映</div><div class="s">スレッド .md に追記、カルテ・決定事項・添付台帳・タスクを更新</div></div>
+      <div class="node"><span class="tag">Google Drive</span><div class="t">10_案件 ほか</div><div class="s">.md が正本。db.json はダッシュボード用の索引</div></div>
+      <div class="node"><span class="tag">Apps Script Web アプリ</span><div class="t">ダッシュボード</div><div class="s">自分だけに公開。PC とスマートフォン</div></div>
+    </div>
+
+    <div class="note"><b>役割分担。</b>Apps Script はファイル操作・文字起こし・画面を、Claude Code は判断（分類・要約・タスク分解・カルテ作成）を担います。Claude Code 側の手順書は <code>secretary/agent/AGENT.md</code>、結果の形式は <code>secretary/agent/schemas.json</code> で、Claude Code は保存前に <code>validate.mjs</code> で形式を確かめます。</div>
+    <div class="note"><b>反映までの時間。</b>メール受信から最大でおよそ「ルーチンの間隔＋20分」です。1時間おきなら、朝8時に届いたメールは9時台に案件フォルダとダッシュボードに入ります。18時以降に届いたメールは翌朝7時台に反映します。朝の「今日の段取り」は5時半にジョブを作り、7時台のルーチンで作成します（7時20分ごろに表示）。</div>
+  </div>
+</section>
+
+<section class="tint" id="grain">
+  <div class="wrap">
+    <div class="sec-no">02</div>
+    <h2>.md の粒度と分類</h2>
+    <p class="lead">案件（工事）ごとのフォルダに、Outlook の会話単位で1ファイルの記録を置き、案件ごとに「カルテ・決定事項・添付台帳・タスク」の4つのまとめを自動で更新します。過去6か月のメールで導入時に検証し、案件の切り方と種別を確定させます。</p>
+
+    <h3>粒度の判断</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>粒度の案</th><th>良い点</th><th>問題</th><th>判断</th></tr></thead>
+      <tbody>
+        <tr><td>1メール＝1ファイル</td><td>処理が単純</td><td>返信の往復で文脈が切れる。ファイル数が年に数千になる</td><td>不採用</td></tr>
+        <tr><td><b>1スレッド＝1ファイル</b></td><td>質疑や是正のやりとりが時系列に並ぶ。引用の重複を除いて追記できる</td><td>長期化したスレッドは長くなる（月別フォルダで分散）</td><td><b>採用</b></td></tr>
+        <tr><td>1案件＝1ファイル</td><td>1枚で全体が見える</td><td>肥大化し、毎回全部を読むことになる</td><td>要約（案件カルテ）として別に持つ</td></tr>
+      </tbody>
+    </table></div>
+    <p>種別はフォルダではなく各ファイルのタグにします。1つのスレッドが「設計・監理者対応」と「工程・現場調整」をまたぐことはよくあるためです。同じ現場でも本体工事と別途工事など契約が分かれる場合は、別案件として扱います。</p>
+
+    <h3>Google Drive のフォルダ構成</h3>
+<pre class="tree">秘書AI/
+├─ 00_inbox/                   <span class="c"># 投入口（Power Automate・あなた）</span>
+│   ├─ mail/  attachments/  records/  bootstrap/
+│   ├─ _queued/                <span class="c"># 解析待ちの原本</span>
+│   └─ _processed/  _error/
+├─ 01_解析キュー/
+│   ├─ jobs/                   <span class="c"># Apps Script が作るジョブ（Google ドキュメント）</span>
+│   ├─ results/                <span class="c"># Claude Code が書く結果 JSON</span>
+│   └─ _done/
+├─ 10_案件/
+│   └─ P-2026-001_(仮称)桜台三丁目共同住宅新築工事/
+│       ├─ _案件カルテ.md      <span class="c"># 現況・マイルストーン・懸案・行政と検査の状況（毎朝更新）</span>
+│       ├─ _決定事項.md        <span class="c"># いつ・どこで・何が決まったか（追記のみ）</span>
+│       ├─ _タスク.md          <span class="c"># Obsidian Tasks 互換の書式</span>
+│       ├─ メール/2026-09/2026-09-25_3Fスラブ配筋検査の指摘3件.md
+│       ├─ 記録/2026-09-21_行政協議・検査_青葉消防署 事前協議.md
+│       │   └─ 原本/           <span class="c"># 音声・文字起こし・手書きメモ</span>
+│       └─ 添付/               <span class="c"># 図面・施工図・見積など + _添付台帳.md（図番・版で追跡）</span>
+├─ 20_一般/  社内/ 見積・契約/ 情報共有/ その他/
+├─ 30_日次ブリーフ/2026-09/2026-09-25.md
+└─ _system/  案件マスタ.md（編集可） 分類提案.md  db.json</pre>
+
+    <h3>種別（施工管理向け）</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>種別</th><th>含むもの</th><th>記録で特に残す項目</th></tr></thead>
+      <tbody>
+        <tr><td class="nw">発注者対応</td><td>施主・発注者からの要望、報告、承認</td><td>要望、決定、保留、増減額と工程への影響</td></tr>
+        <tr><td class="nw">設計・監理者対応</td><td>質疑・回答、施工図の承認、監理者検査の指摘</td><td>質疑番号、図番・版、指摘と是正期限</td></tr>
+        <tr><td class="nw">行政・官公庁</td><td>確認検査機関・消防・警察（道路使用）・役所の届出や検査</td><td>指摘、根拠法令、指導か必須か、提出期限</td></tr>
+        <tr><td class="nw">協力会社・発注</td><td>専門工事会社・資材の手配、見積依頼、施工図の受領</td><td>数量、納期、搬入日、見積金額</td></tr>
+        <tr><td class="nw">工程・現場調整</td><td>工程表、作業調整、揚重・搬入、会議招集</td><td>日時、作業範囲、関係業者</td></tr>
+        <tr><td class="nw">安全・品質</td><td>安全書類、災害防止、品質記録、是正</td><td>提出先・期限、指摘件数</td></tr>
+        <tr><td class="nw">近隣対応</td><td>近隣からの意見・苦情、工事のお知らせ</td><td>要望、こちらの約束、対応期限</td></tr>
+        <tr><td class="nw">見積・契約・出来高</td><td>変更見積、注文書・契約、出来高査定、請求</td><td>金額（税抜・税込）、有効期限、締め日</td></tr>
+        <tr><td class="nw">社内・情報共有・その他</td><td>社内連絡、業界情報など</td><td>締切と要点</td></tr>
+      </tbody>
+    </table></div>
+    <p>フェーズ（見積・受注／着工準備／仮設・土工事／躯体工事／仕上・設備工事／外構工事／検査・竣工／引渡し・アフター）もタグとして付けます。</p>
+
+    <h3>過去6か月での検証（導入時に1回）</h3>
+    <ol class="steps">
+      <li><b>過去メールを書き出す</b><span class="d">Power Automate のフロー C が、日ごとの件名・送受信者・冒頭文を <code>00_inbox/bootstrap</code> に保存します。本文全体は読みません。</span></li>
+      <li><b>Apps Script で bootstrapPrepare() を実行</b><span class="d">700通ずつの解析ジョブができます。Claude Code が順に処理し、すべてそろうと統合ジョブが自動でできます。</span></li>
+      <li><b>分類提案.md を確認して確定</b><span class="d">工事ごとのまとまり（略称・工事番号の表記ゆれを含む）、種別の見直し、除外すべき配信元が出ます。案件候補はダッシュボードの「提案」で承認します。</span></li>
+    </ol>
+  </div>
+</section>
+
+<section id="attach">
+  <div class="wrap">
+    <div class="sec-no">03</div>
+    <h2>添付ファイルの読み方</h2>
+    <p class="lead">Claude Code は Google Drive コネクタの <code>read_file_content</code> で PDF・Word・Excel・PowerPoint・画像を直接読みます。読めない形式は Apps Script がテキストにしてジョブへ書き込みます。ファイル自体は各案件の「添付」フォルダへ移し、要点を <code>_添付台帳.md</code> に1行ずつ記録します。</p>
+    <div class="tbl"><table>
+      <thead><tr><th>種類</th><th>読み方</th><th>抽出する内容</th></tr></thead>
+      <tbody>
+        <tr><td class="nw">PDF</td><td>Claude Code が read_file_content で読む</td><td>図面・施工図: 図面名・図番・版・改訂内容<br>質疑回答書: 質疑番号・回答・図面反映の要否<br>検査記録: 指摘件数と是正期限</td></tr>
+        <tr><td class="nw">Excel (xlsx)・Word・PowerPoint</td><td>同上</td><td>見積内訳、工程表、数量表、安全書類、議事録</td></tr>
+        <tr><td class="nw">画像 JPG/PNG</td><td>同上。15KB 未満は署名ロゴとみなして除外</td><td>現場写真: 部位・状況・不具合／手書きメモ</td></tr>
+        <tr><td class="nw">旧形式 xls・ppt、CSV・テキスト</td><td>Apps Script が変換してジョブに書き込む（xls は全シートを CSV 化）</td><td>見積内訳、数量</td></tr>
+        <tr><td class="nw">ZIP</td><td>Apps Script が展開し、中身を同じ規則で扱う（最大15ファイル）</td><td>中身の一覧と各要点</td></tr>
+        <tr><td class="nw">CAD・BIM</td><td>DWG・JWW・DXF・SFC・RVT・IFC などは解析しない</td><td>ファイル名から図番・版だけ記録。同送の PDF 側を読む</td></tr>
+        <tr><td class="nw">転送・工事管理サービスのリンク</td><td>ギガファイル便・firestorage・Box・SharePoint・ANDPAD などのリンクを検出</td><td>期限があれば「ダウンロードして保存」タスクを前営業日の期日で作成</td></tr>
+        <tr><td class="nw">HEIC・動画・その他</td><td>メタ情報のみ</td><td>ファイル名。iPhone は「互換性優先」設定を推奨</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note warn"><b>API 版との違い。</b>コネクタは PDF を主に文字情報として読むため、図面の線や寸法の配置そのものを見て判断することはできません。図番・版・改訂欄・注記など、文字で書かれた情報が中心になります。</div>
+  </div>
+</section>
+
+<section class="tint" id="records">
+  <div class="wrap">
+    <div class="sec-no">04</div>
+    <h2>打合せ・協議の記録</h2>
+    <p class="lead">音声・メモ・写真を Drive の <code>00_inbox/records</code> に入れるか、ダッシュボードの「記録を追加」から投稿します。音声は Apps Script が Gemini で文字起こしし、Claude Code が議事録に整えます。</p>
+    <div class="two">
+      <div>
+        <h4>記録の種類</h4>
+        <p>発注者打合せ／設計定例／行政協議・検査／工程会議・職長会／現場確認・検査／近隣説明／社内会議／電話メモ</p>
+        <p>ファイル名の先頭に <code>[P-2026-001][行政協議・検査]</code> を付けると案件と種類が確実に決まります。ダッシュボードからの投稿では自動で付きます。</p>
+        <h4>入れられるもの</h4>
+        <ul>
+          <li>音声（m4a / mp3 / wav）: 45MB まで</li>
+          <li>テキスト・Markdown: 走り書きのメモで構いません</li>
+          <li>PDF・Word・写真: 手書きメモやホワイトボード</li>
+        </ul>
+      </div>
+      <div>
+        <h4>議事録の型</h4>
+        <ul>
+          <li>基本情報の表（日時・場所・相手先・出席者・目的）</li>
+          <li><b>協議事項の表</b>: 論点／相手の指摘・要望／回答・協議結果／根拠（法令・仕様書・図面と温度感）／状態（解決・要対応・継続協議・参考）</li>
+          <li>決定事項 → 案件の <code>_決定事項.md</code> にも追記</li>
+          <li>本人のタスクと、相手側の宿題（相手待ち）。近隣説明で約束したことはタスクになります</li>
+          <li>次回の日時・議題、聞き取れなかった点</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note warn"><b>録音は相手の了承を取ってから。</b>官公庁の窓口では断られることがあります。その場合は、協議直後に要点を口頭で吹き込んだ音声や、手書きメモの写真でも十分に構造化できます。</div>
+  </div>
+</section>
+
+<section id="tasks">
+  <div class="wrap">
+    <div class="sec-no">05</div>
+    <h2>タスクの読み取りと分解</h2>
+    <p class="lead">メール1通・記録1件ごとに、あなたが行動すべきことを1つの成果（提出・回答・承認取得・手配・是正）単位で読み取り、段取りに分解して提案します。採用したものだけがタスクになります。</p>
+    <div class="two">
+      <div>
+        <h4>拾う・拾わない</h4>
+        <ul>
+          <li>拾う: To に自分が入り、依頼・質問・提出を求められている／本文で名指し／<b>自分の送信メールで約束したこと</b></li>
+          <li>拾わない: CC だけの共有、他者宛ての依頼、お礼・受領連絡のみ</li>
+          <li>自分が依頼して返事を待っているもの（質疑回答・施工図・見積・承認）→ <b>相手待ち</b></li>
+          <li>送信メールで報告書などを送ったら、該当タスクを<b>完了候補</b>として提示</li>
+        </ul>
+        <h4>期日の決め方</h4>
+        <ul>
+          <li>期限の明記あり → 最終工程を期限の1営業日前に置き、サブタスクは逆算</li>
+          <li>検査・打設・搬入に関わる段取り → その日の前営業日までに完了</li>
+          <li>許認可・届出（道路使用許可など）→ 審査日数を見込んで前倒し</li>
+          <li>「至急」→ 当日か翌営業日／「今週中」→ 今週最終営業日</li>
+          <li>記載なし → 回答は2営業日、書類作成は5営業日を既定とし「既定」と明示</li>
+          <li>土日・祝日は Google の祝日カレンダーで判定</li>
+        </ul>
+      </div>
+      <div>
+        <h4>分解の例（監理者の配筋検査指摘）</h4>
+        <div class="tbl"><table>
+          <thead><tr><th>#</th><th>サブタスク</th><th>期日</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>指摘3件の是正内容を鉄筋業者の職長へ指示する</td><td class="nw mono">9/28</td></tr>
+            <tr><td>2</td><td>開口補強筋の径を監理者に質疑で確認する</td><td class="nw mono">9/28</td></tr>
+            <tr><td>3</td><td>是正状況を確認し、写真を撮影する</td><td class="nw mono">9/30</td></tr>
+            <tr><td>4</td><td>是正報告書を作成して所長の確認を受け、監理者へ提出する</td><td class="nw mono">10/1</td></tr>
+          </tbody>
+        </table></div>
+        <p style="font-size:14px;color:var(--ink-2)">期日の根拠: 是正報告の期限 10/2(金) の明記 → 1営業日前に提出。10/6(火) の打設前に完了が必要なため優先度「高」。あわせて「監理者から補強筋径の回答」が相手待ちに入ります。</p>
+      </div>
+    </div>
+    <div class="status-line"><span class="st a">提案</span><span class="arrow">→ 採用 →</span><span class="st">未着手</span><span class="arrow">→</span><span class="st">進行中</span><span class="arrow">→</span><span class="st g">完了</span><span class="arrow">／</span><span class="st">相手待ち</span><span class="arrow">／</span><span class="st">却下</span></div>
+  </div>
+</section>
+
+<section class="tint" id="dash">
+  <div class="wrap">
+    <div class="sec-no">06</div>
+    <h2>ダッシュボード</h2>
+    <p class="lead">Notion のページのような構成に、Liquid Glass のような半透明のサイドバー・上部バー・下部タブバーを重ねています。スマートフォンでは下部のタブバーに切り替わります。</p>
+    <div class="cards">
+      <div class="card"><h4>ホーム</h4><p>今日の段取り、期限切れ・今日期日・提案待ち・相手待ちの件数、今日やること、7日以内の予定、新着メール、案件の動き。解析待ちの件数と最終解析の時刻も表示します。</p></div>
+      <div class="card"><h4>提案</h4><p>タスク候補を根拠・期日の理由・サブタスク付きで表示。採用／編集して採用／却下。完了候補と新しい案件の候補もここに出ます。</p></div>
+      <div class="card"><h4>タスク</h4><p>期限でまとめたリストと、ドラッグで状態を変えられるボード。自分のタスクと相手待ちを切り替え。</p></div>
+      <div class="card"><h4>案件</h4><p>案件カルテ・タイムライン（メールと記録）・タスク・決定事項・添付台帳のタブ。</p></div>
+      <div class="card"><h4>記録・メール</h4><p>議事録と解析済みメールの一覧。メールは要約・要点・添付の解析結果とそこから作られたタスクを表示。</p></div>
+      <div class="card"><h4>稼働状況</h4><p>解析待ちの件数と内訳、最後に反映した時刻、メルマガ判定した送信元、処理ログ。ルーチンが止まっていないかをここで確認します。</p></div>
+    </div>
+    <p style="margin-top:22px"><a href="gas/Dashboard.html">デモを開く →</a>（架空の工事のサンプルデータで動きます）</p>
+  </div>
+</section>
+
+<section id="setup">
+  <div class="wrap">
+    <div class="sec-no">07</div>
+    <h2>導入手順</h2>
+    <p class="lead">所要時間の目安は2〜3時間です。コードはこのリポジトリの <code>secretary/</code> にあります。先に PR をマージしてください（Claude Code のルーチンは既定のブランチの手順書を読みます）。</p>
+
+    <h3>A. Google 側（Apps Script）</h3>
+    <ol class="steps">
+      <li><b>Apps Script プロジェクトを作る</b><span class="d"><a href="https://script.new" target="_blank" rel="noopener">script.new</a> で新規作成し、<code>secretary/gas/</code> の各ファイルを同じ名前で作って貼り付けます。<code>appsscript.json</code> は「プロジェクトの設定 → 『appsscript.json』マニフェスト ファイルをエディタで表示する」をオンにしてから置き換えます。clasp を使う場合は <code>clasp create --type standalone --rootDir secretary/gas</code> → <code>clasp push</code>。</span></li>
+      <li><b>スクリプト プロパティを登録する</b><span class="d"><code>OWNER_NAME</code>（氏名）、<code>OWNER_EMAILS</code>（自分のアドレス。エイリアスもカンマ区切りで）、<code>GEMINI_API_KEY</code>（Google AI Studio で発行）。立場を変える場合だけ <code>OWNER_ROLE</code>。</span></li>
+      <li><b>setup() を実行する</b><span class="d">初回は権限の承認画面が出ます。マイドライブに「秘書AI」フォルダと解析キューが作られ、10分おきの処理と朝5時半の日次ジョブ作成が登録されます。</span></li>
+      <li><b>Web アプリとしてデプロイする</b><span class="d">「デプロイ → 新しいデプロイ → ウェブアプリ」。実行ユーザーは「自分」、アクセスは「自分のみ」。発行された URL を iPhone のホーム画面に追加します。</span></li>
+    </ol>
+
+    <h3>B. Claude Code 側（解析ルーチン）</h3>
+    <ol class="steps">
+      <li><b>Google Drive コネクタを接続する</b><span class="d">claude.ai の設定 → コネクタで Google Drive を、「秘書AI」フォルダがあるのと同じ Google アカウントで接続します（接続済みなら不要）。</span></li>
+      <li><b>ルーチンを作る</b><span class="d">このセッションで作成できます（依頼してください）。内容: 実行間隔 = 毎日7時〜18時の1時間おき（日本時間）、毎回新しいセッションで実行、コネクタ = Google Drive、モデル = Claude Sonnet 5、プロンプト = <code>secretary/agent/routine-prompt.txt</code>。</span></li>
+      <li><b>動作確認</b><span class="d">テストメールを1通流し、ジョブができたらルーチンを手動で1回実行します。<code>01_解析キュー/results</code> に結果ができ、10分以内に案件フォルダへ .md が入れば完了です。</span></li>
+    </ol>
+
+    <h3>C. Microsoft 側（Power Automate）</h3>
+    <p>先に Outlook の仕分けルールで、明らかなメールマガジンを別フォルダへ移しておくと、フローの起動自体が減ります。</p>
+    <h4>フロー A: 受信メール → Drive</h4>
+    <ol class="steps">
+      <li><b>トリガー: Office 365 Outlook「新しいメールが届いたとき (V3)」</b><span class="d">フォルダー: 受信トレイ／添付ファイルを含める: はい。</span></li>
+      <li><b>変数を初期化: key（文字列）</b><span class="d"><code>@{formatDateTime(convertFromUtc(triggerOutputs()?['body/receivedDateTime'],'Tokyo Standard Time'),'yyyyMMdd-HHmmss')}_@{substring(replace(guid(),'-',''),0,8)}</code></span></li>
+      <li><b>HTML からテキストへ（コンテンツ変換）</b><span class="d">コンテンツ: <code>triggerOutputs()?['body/body']</code>。アクション名は「HTML_からテキストへ」のままにします。</span></li>
+      <li><b>作成: 除外アドレス／除外ドメイン</b><span class="d">JSON 配列で登録します。例 <code>["news@example.jp"]</code>。ダッシュボードの「稼働状況」に出る送信元を順次追加します。</span></li>
+      <li><b>条件: 配信メールか</b><span class="d">式で次を入れ、「はい」側は何もしない（終了）にします。<br><code>@or(contains(outputs('除外アドレス'), toLower(triggerOutputs()?['body/from'])), contains(outputs('除外ドメイン'), last(split(toLower(triggerOutputs()?['body/from']), '@'))), contains(body('HTML_からテキストへ'), '配信停止'), contains(body('HTML_からテキストへ'), '配信解除'), contains(toLower(body('HTML_からテキストへ')), 'unsubscribe'))</code></span></li>
+      <li><b>「いいえ」側: 添付を保存（Apply to each）</b><span class="d">対象 <code>triggerOutputs()?['body/attachments']</code>。<code>items('Apply_to_each')?['isInline']</code> が false のとき、Google Drive「ファイルの作成」: フォルダー <code>/秘書AI/00_inbox/attachments</code>、名前 <code>@{variables('key')}__@{items('Apply_to_each')?['name']}</code>、内容 <code>@{base64ToBinary(items('Apply_to_each')?['contentBytes'])}</code></span></li>
+      <li><b>選択: 添付一覧</b><span class="d">From <code>triggerOutputs()?['body/attachments']</code>、マップ: name / contentType / size / isInline。アクション名は「選択」。</span></li>
+      <li><b>作成: メール JSON（下のコードをそのまま貼る）→ Drive に保存</b><span class="d">Google Drive「ファイルの作成」: フォルダー <code>/秘書AI/00_inbox/mail</code>、名前 <code>@{variables('key')}.json</code>、内容 <code>@{outputs('作成')}</code>。<b>添付の保存より後</b>に置きます。</span></li>
+    </ol>
+<pre>{
+  "schema": "mail.v1",
+  "direction": "in",
+  "id": "@{triggerOutputs()?['body/id']}",
+  "internetMessageId": "@{triggerOutputs()?['body/internetMessageId']}",
+  "conversationId": "@{triggerOutputs()?['body/conversationId']}",
+  "receivedAt": "@{triggerOutputs()?['body/receivedDateTime']}",
+  "from": "@{triggerOutputs()?['body/from']}",
+  "to": "@{triggerOutputs()?['body/toRecipients']}",
+  "cc": "@{triggerOutputs()?['body/ccRecipients']}",
+  "subject": "@{triggerOutputs()?['body/subject']}",
+  "importance": "@{triggerOutputs()?['body/importance']}",
+  "bodyText": "@{body('HTML_からテキストへ')}",
+  "bodyPreview": "@{triggerOutputs()?['body/bodyPreview']}",
+  "attachments": "@body('選択')",
+  "webLink": "https://outlook.office.com/mail/deeplink/read/@{encodeUriComponent(triggerOutputs()?['body/id'])}"
+}</pre>
+    <div class="note">「作成」の入力が正しい JSON として認識されていれば、本文の引用符や改行は自動でエスケープされます。webLink で Outlook が開かない環境では空文字にして構いません。</div>
+    <h4>フロー B: 送信メール → Drive</h4>
+    <p>フロー A を複製し、トリガーのフォルダーを「送信済みアイテム」に、JSON の <code>direction</code> を <code>"out"</code> に変え、除外の条件を削除します。</p>
+    <h4>フロー C: 過去6か月の書き出し（初期分析用・1回だけ）</h4>
+    <ol class="steps">
+      <li><b>手動トリガー</b><span class="d">入力: 開始日（6か月前の日付）、日数 180。変数 i（整数）＝0。</span></li>
+      <li><b>Do until: i が日数以上</b><span class="d">上限を「回数 400・タイムアウト PT6H」に広げます。中で変数 day ＝ <code>@{formatDateTime(addDays(triggerBody()?['date'], variables('i')), 'yyyy-MM-dd')}</code>。</span></li>
+      <li><b>メールの取得 (V3) を受信トレイと送信済みの2回</b><span class="d">上位: 25、検索クエリ: <code>received:@{variables('day')}</code>、添付を含める: いいえ。1日25通を超える日は一部だけになりますが、分類には十分です。</span></li>
+      <li><b>選択 → Drive に保存</b><span class="d">マップ: receivedAt, direction（"in"/"out"）, from, to, subject, preview（bodyPreview）, conversationId。受信と送信を <code>union()</code> でまとめ、<code>/秘書AI/00_inbox/bootstrap/@{variables('day')}.json</code> に保存。最後に i を1増やします。</span></li>
+      <li><b>Apps Script で bootstrapPrepare() を実行</b><span class="d">以後はルーチンが順に処理し、<code>_system/分類提案.md</code> とダッシュボードの「新しい案件の候補」に結果が出ます。</span></li>
+    </ol>
+  </div>
+</section>
+
+<section class="tint" id="usage">
+  <div class="wrap">
+    <div class="sec-no">08</div>
+    <h2>実行間隔と利用量</h2>
+    <p class="lead">Claude API の従量課金はなくなり、Claude Code の実行はあなたの Claude のプランの利用枠から消費されます。Power Automate は標準コネクタのみ、Apps Script と Drive は無料枠内、Gemini の文字起こしは少額（Google AI Studio の料金表を確認）です。</p>
+    <div class="tbl"><table>
+      <thead><tr><th>実行間隔の案</th><th>1日の実行回数</th><th>反映までの時間</th><th>向いている使い方</th></tr></thead>
+      <tbody>
+        <tr><td><b>1時間おき（7〜18時）・採用</b></td><td class="mono">12回</td><td>最大 約1時間20分（夜間分は翌朝）</td><td>当日中の対応が多い現場向け</td></tr>
+        <tr><td>2時間おき（6〜20時）</td><td class="mono">8回</td><td>最大 約2時間20分</td><td>朝・昼・夕に確認する使い方。利用枠を抑えたいとき</td></tr>
+        <tr><td>1日3回（6時・12時・17時）</td><td class="mono">3回</td><td>最大 半日</td><td>利用枠を節約したい。日次の整理が中心</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note">1回の実行で扱うのは最大15件です。1日40通のメールなら1時間おきで十分に収まります。ジョブがない回はすぐ終わるので、利用枠の消費はわずかです。利用枠に達したときは解析待ちが溜まるだけで、次の枠で順に処理されます（データは失われません）。</div>
+  </div>
+</section>
+
+<section id="risk">
+  <div class="wrap">
+    <div class="sec-no">09</div>
+    <h2>注意点</h2>
+    <div class="cards">
+      <div class="card"><h4>メール経由の指示の混入</h4><p>ルーチンは Drive への書き込み権限を持つため、メール本文に紛れた指示に従わないよう手順書で固く禁じています（共有・削除・URL を開く・リポジトリへの書き込みを禁止）。心配な場合は、ルーチンを動かす環境のネットワークを必要最小限に絞ってください。</p></div>
+      <div class="card"><h4>公開リポジトリ</h4><p>このリポジトリは GitHub Pages で公開されています。置いてあるのはコードと手順書だけで、メールや議事録は Drive にしか保存しません。ルーチンにはコミット・プッシュを禁止しています。</p></div>
+      <div class="card"><h4>ルーチンの停止に気づく</h4><p>ルーチンが止まると解析待ちが増え続けます。ダッシュボードのホームと「稼働状況」に解析待ちの件数と最終解析の時刻が出るので、半日以上動いていなければ確認してください。</p></div>
+      <div class="card"><h4>公開範囲</h4><p>ダッシュボードは「自分のみ」でデプロイします。「秘書AI」フォルダは共有しないでください。取引先の氏名や連絡先が含まれます。</p></div>
+      <div class="card"><h4>Apps Script の上限</h4><p>個人アカウントはトリガーの合計実行時間が1日90分です。解析は Claude Code 側で行うため、Apps Script の負荷は API 版より軽くなりました。長い音声の文字起こしが多い日は時間がかかります。</p></div>
+      <div class="card"><h4>図面の読み取り</h4><p>コネクタ経由の PDF は文字情報が中心です。図番・版・改訂欄・注記は拾えますが、図の形そのものは読めません。</p></div>
+    </div>
+    <div class="note">この仕組みはまだ実環境では動かしていません。Drive とメールを模した環境で「メール投入 → ジョブ作成 → 結果の反映 → .md とタスクの生成」までの流れは確認済みです（<code>node secretary/test/pipeline.test.mjs</code>）。導入時はテストメールで一通り確認してから本運用にしてください。</div>
+  </div>
+</section>
+
+<footer><div class="wrap">秘書AI 設計書 第2版 ／ Apps Script: <code>secretary/gas/</code> ／ Claude Code 手順書: <code>secretary/agent/</code> ／ ダッシュボード: <code>secretary/gas/Dashboard.html</code></div></footer>
+</body>
+</html>
