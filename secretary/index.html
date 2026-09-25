@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>秘書AI 設計書</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/* ライトモードに振り切った単一テーマ（Apple の製品ページのような白基調） */
+:root {
+  color-scheme: light;
+  --bg: #FFFFFF;
+  --bg-2: #F5F5F7;
+  --ink: #1D1D1F;
+  --ink-2: #515154;
+  --ink-3: #86868B;
+  --line: #E3E3E8;
+  --accent: #0066CC;
+  --accent-soft: #E8F1FB;
+  --green: #1D8A5B;
+  --amber: #B26A00;
+  --red: #C8322F;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.8 var(--font); -webkit-font-smoothing: antialiased; font-feature-settings: "palt" 1; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+code { background: var(--bg-2); border-radius: 5px; padding: 1px 6px; overflow-wrap: anywhere; }
+
+.localnav {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+  background: rgba(255,255,255,0.78); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--line);
+}
+.localnav-in { max-width: 1080px; margin: 0 auto; padding: 0 22px; display: flex; align-items: center; gap: 22px; height: 52px; }
+.localnav b { font-size: 19px; font-weight: 700; white-space: nowrap; }
+.localnav nav { display: flex; gap: 18px; overflow-x: auto; font-size: 12.5px; scrollbar-width: none; }
+.localnav nav a { color: var(--ink-2); white-space: nowrap; }
+.localnav .cta { margin-left: auto; background: var(--accent); color: #fff; border-radius: 999px; padding: 3px 13px; font-size: 12.5px; white-space: nowrap; }
+.localnav .cta:hover { text-decoration: none; filter: brightness(1.08); }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 22px; }
+.narrow { max-width: 760px; }
+.hero { padding-block: 72px 44px; text-align: center; }
+.eyebrow { font-size: 14px; color: var(--amber); font-weight: 500; letter-spacing: 0.04em; }
+.hero h1 { font-size: clamp(34px, 6vw, 56px); line-height: 1.15; margin: 10px 0 18px; letter-spacing: -0.005em; text-wrap: balance; }
+.hero p { font-size: clamp(17px, 2.2vw, 21px); color: var(--ink-2); max-width: 720px; margin: 0 auto; line-height: 1.7; }
+.hero-links { display: flex; gap: 14px; justify-content: center; margin-top: 26px; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 10px 20px; font-size: 15px; border: 1px solid var(--accent); }
+.pill.fill { background: var(--accent); color: #fff; }
+.pill:hover { text-decoration: none; filter: brightness(1.05); }
+
+section { padding-block: 64px; border-top: 1px solid var(--line); }
+section.tint { background: var(--bg-2); border-top: 0; }
+.sec-no { font-family: var(--mono); font-size: 13px; color: var(--ink-3); }
+h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.25; margin: 6px 0 14px; text-wrap: balance; }
+h3 { font-size: 20px; margin: 34px 0 8px; line-height: 1.45; }
+h4 { font-size: 16px; margin: 22px 0 6px; }
+.lead { font-size: 18px; color: var(--ink-2); max-width: 760px; }
+p { margin: 10px 0; }
+ul, ol { padding-left: 1.3em; }
+li { margin: 4px 0; }
+.note { font-size: 14px; color: var(--ink-2); background: var(--bg-2); border-radius: 14px; padding: 14px 18px; margin: 16px 0; }
+section.tint .note { background: #fff; }
+.note.warn { background: #FFF6E5; color: #5E4200; }
+.note b { color: var(--ink); }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
+.card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; }
+section.tint .card { border-color: transparent; }
+.card h4 { margin: 0 0 6px; font-size: 16.5px; }
+.card p { font-size: 14.5px; color: var(--ink-2); margin: 0; }
+.card .k { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+
+/* 構成図 */
+.flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin-top: 30px; align-items: stretch; }
+.node { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 14px 16px; position: relative; margin-right: 26px; }
+.node:last-child { margin-right: 0; }
+.node:not(:last-child)::after { content: "→"; position: absolute; right: -22px; top: 50%; transform: translateY(-50%); color: var(--ink-3); font-size: 18px; }
+.node .t { font-weight: 700; font-size: 15px; line-height: 1.4; }
+.node .s { font-size: 12.5px; color: var(--ink-2); line-height: 1.6; margin-top: 6px; }
+.node .tag { display: inline-block; font-size: 11px; border-radius: 6px; padding: 0 6px; background: var(--accent-soft); color: var(--accent); margin-bottom: 6px; }
+.flow-sub { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 14px; }
+.flow-sub .node { grid-column: 1 / span 2; margin-right: 26px; }
+.flow-sub .node::after { content: "→ Drive の 00_inbox/records へ"; right: auto; left: calc(100% + 10px); white-space: nowrap; font-size: 12.5px; top: 50%; }
+.flow-sub .node2 { grid-column: 4 / span 2; }
+.flow-sub .node2::after { content: none; }
+
+/* 表 */
+.tbl { overflow-x: auto; margin: 16px 0; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.65; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { background: var(--bg-2); font-weight: 500; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+td.nw { white-space: nowrap; }
+
+pre { background: #1D1D1F; color: #F5F5F7; border-radius: 14px; padding: 16px 18px; overflow-x: auto; font: 12.5px/1.7 var(--mono); margin: 12px 0; white-space: pre; }
+pre .c { color: #9A9AA0; }
+.tree { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+.tree .c { color: var(--ink-3); }
+
+.steps { counter-reset: s; list-style: none; padding: 0; display: grid; gap: 10px; }
+.steps > li { counter-increment: s; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px 14px 58px; position: relative; }
+section.tint .steps > li { border-color: transparent; }
+.steps > li::before { content: counter(s); position: absolute; left: 18px; top: 14px; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: #fff; font: 500 13px/26px var(--mono); text-align: center; }
+.steps > li b { display: block; margin-bottom: 2px; }
+.steps > li .d { font-size: 14.5px; color: var(--ink-2); }
+
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.status-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0; font-size: 14px; }
+.st { border-radius: 999px; padding: 3px 12px; background: var(--bg-2); }
+.st.a { background: var(--accent-soft); color: var(--accent); }
+.st.g { background: #E4F4EC; color: var(--green); }
+.arrow { color: var(--ink-3); }
+
+/* 費用試算 */
+.calc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 20px; }
+.calc label { display: grid; gap: 4px; font-size: 14px; color: var(--ink-2); margin-bottom: 14px; }
+.calc input[type=range] { width: 100%; accent-color: var(--accent); }
+.calc output { font-family: var(--mono); color: var(--ink); }
+.result { background: #fff; border-radius: 18px; padding: 20px 22px; border: 1px solid var(--line); }
+section.tint .result { border-color: transparent; }
+.result .big { font-family: var(--mono); font-size: 40px; font-weight: 500; line-height: 1.2; }
+.result .big small { font-size: 15px; color: var(--ink-3); font-family: var(--font); }
+.result .row { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--line); gap: 12px; }
+.result .row:last-child { border-bottom: 0; }
+.result .row span:last-child { font-family: var(--mono); }
+
+/* 確認事項フォーム */
+.q { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; margin-top: 14px; }
+.q legend { font-weight: 700; font-size: 16px; padding: 0; margin-bottom: 4px; float: left; width: 100%; }
+.q .hint { font-size: 13.5px; color: var(--ink-2); clear: both; margin: 2px 0 8px; }
+.q fieldset { border: 0; margin: 0; padding: 0; }
+.opt { display: flex; gap: 10px; align-items: flex-start; padding: 7px 10px; border-radius: 10px; cursor: pointer; font-size: 15px; }
+.opt:hover { background: var(--bg-2); }
+.opt input { margin-top: 6px; accent-color: var(--accent); }
+.opt small { display: block; color: var(--ink-3); font-size: 13px; }
+.q textarea, .q input[type=text], .q input[type=number] { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 15px; }
+.answer { margin-top: 20px; }
+.answer textarea { width: 100%; min-height: 200px; border: 1px solid var(--line); border-radius: 14px; padding: 14px; font: 13px/1.7 var(--mono); background: var(--bg-2); }
+.btn { border: 0; background: var(--accent); color: #fff; border-radius: 999px; padding: 10px 20px; font: inherit; font-size: 15px; cursor: pointer; }
+.btn:hover { filter: brightness(1.08); }
+.copied { color: var(--green); font-size: 14px; margin-left: 10px; }
+
+footer { border-top: 1px solid var(--line); padding-block: 30px 60px; color: var(--ink-3); font-size: 13px; }
+
+@media (max-width: 860px) {
+  .flow { grid-template-columns: minmax(0, 1fr); gap: 26px; }
+  .node { margin-right: 0; }
+  .node:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -24px; transform: none; }
+  .flow-sub { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .flow-sub .node, .flow-sub .node2 { grid-column: 1; margin-right: 0; }
+  .flow-sub .node::after { content: "↓ 00_inbox/records へ"; left: 16px; top: auto; bottom: -24px; }
+  .two, .calc { grid-template-columns: minmax(0, 1fr); }
+  section { padding-block: 48px; }
+  .localnav nav { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="localnav"><div class="localnav-in">
+  <b>秘書AI</b>
+  <nav>
+    <a href="#arch">全体構成</a><a href="#grain">粒度と分類</a><a href="#attach">添付の解釈</a><a href="#records">打合せ記録</a>
+    <a href="#tasks">タスク提案</a><a href="#dash">ダッシュボード</a><a href="#setup">導入手順</a><a href="#cost">費用</a><a href="#risk">注意点</a>
+  </nav>
+  <a class="cta" href="#decide">確認事項に回答</a>
+</div></div>
+
+<header class="wrap hero">
+  <div class="eyebrow">設計書・提案書　2026年9月</div>
+  <h1>メールと打合せから、<br>仕事を組み立てる秘書。</h1>
+  <p>Outlook に届く業務メールと、行政協議・施主打合せの記録を Claude が読み、案件ごとの Markdown に整理し続けます。あなたがやるべきことは、期日付きの段取りに分解して提案します。</p>
+  <div class="hero-links">
+    <a class="pill fill" href="gas/Dashboard.html">ダッシュボードのデモを開く</a>
+    <a class="pill" href="#setup">導入手順を見る</a>
+  </div>
+</header>
+
+<section class="tint" id="summary">
+  <div class="wrap">
+    <div class="sec-no">00</div>
+    <h2>できること</h2>
+    <div class="cards">
+      <div class="card"><div class="k">収集</div><h4>メルマガ以外のすべてを読む</h4><p>受信と送信の両方を対象にします。送信メールで約束したことや相手に頼んだことも拾えます。配信メールは3段階で除外します。</p></div>
+      <div class="card"><div class="k">集約</div><h4>案件ごとに .md へ整理</h4><p>スレッド単位の記録に加えて、案件カルテ・決定事項ログ・添付台帳・タスクを自動で更新します。保存先は Google Drive です。</p></div>
+      <div class="card"><div class="k">記録</div><h4>音声・メモから議事録</h4><p>行政協議は指摘・根拠条文・回答・対応要否の表に、施主打合せは要望・決定・保留に整理します。</p></div>
+      <div class="card"><div class="k">段取り</div><h4>タスクを分解して提案</h4><p>期日の根拠と逆算したサブタスクを付けて提案します。採用するかどうかはダッシュボードで選びます。</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="arch">
+  <div class="wrap">
+    <div class="sec-no">01</div>
+    <h2>全体構成</h2>
+    <p class="lead">Claude と Microsoft 365 は直接つなげない前提なので、Power Automate が Outlook から Google Drive へ「投入」し、Google Apps Script が Drive 上で Claude API を呼んで整理します。ダッシュボードも Apps Script の Web アプリとして、あなたのアカウントだけに公開します。</p>
+    <div class="flow">
+      <div class="node"><span class="tag">Microsoft 365</span><div class="t">Outlook</div><div class="s">受信トレイと送信済みアイテム</div></div>
+      <div class="node"><span class="tag">Microsoft 365</span><div class="t">Power Automate</div><div class="s">配信メールの除外。本文を JSON に、添付はファイルのまま出力</div></div>
+      <div class="node"><span class="tag">Google</span><div class="t">Drive 00_inbox</div><div class="s">mail / attachments / records の投入口</div></div>
+      <div class="node"><span class="tag">Google + Claude</span><div class="t">Apps Script → Claude API</div><div class="s">10分おきに解析。.md を書き、db.json を更新。毎朝カルテとブリーフを作成</div></div>
+      <div class="node"><span class="tag">Google</span><div class="t">ダッシュボード</div><div class="s">Apps Script Web アプリ（自分のみ）。PC とスマートフォンで使用</div></div>
+    </div>
+    <div class="flow-sub">
+      <div class="node"><span class="tag">あなた</span><div class="t">音声・メモ・写真</div><div class="s">iPhone の Drive アプリで共有、またはダッシュボードから投稿</div></div>
+      <div class="node node2"><span class="tag">Claude アプリ</span><div class="t">Drive コネクタで質問</div><div class="s">「桜台の行政協議の経緯は？」のように .md を直接読ませて相談できる</div></div>
+    </div>
+    <div class="note"><b>.md が正本、db.json は索引。</b>知識はすべて人が読める Markdown で Drive に残ります。db.json はダッシュボードの一覧・検索用の索引で、タスクの状態（採用・完了など）だけはここで管理し、変更のたびに各案件の <code>_タスク.md</code> に書き出します。</div>
+  </div>
+</section>
+
+<section class="tint" id="grain">
+  <div class="wrap">
+    <div class="sec-no">02</div>
+    <h2>.md の粒度と分類</h2>
+    <p class="lead">過去メールの分析は Outlook に接続できるようになってから行います（この作業環境からはメールボックスを読めないため）。そこで、行政協議と施主打合せを扱う建築実務を前提にした初期案を用意し、導入時に過去メールで検証して確定させる二段階にしました。</p>
+
+    <h3>推奨: 「案件 ＞ スレッド」の2階層と、案件ごとに更新されるまとめ文書</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>粒度の案</th><th>良い点</th><th>問題</th><th>判断</th></tr></thead>
+      <tbody>
+        <tr><td>1メール＝1ファイル</td><td>処理が単純</td><td>返信の往復で文脈が切れる。ファイル数が年に数千になる</td><td>不採用</td></tr>
+        <tr><td><b>1スレッド＝1ファイル</b></td><td>Outlook の会話単位で往復が時系列に並ぶ。引用の重複を除いて追記できる</td><td>長期化したスレッドは長くなる（月別フォルダで分散）</td><td><b>採用</b></td></tr>
+        <tr><td>1案件＝1ファイル</td><td>1枚で全体が見える</td><td>肥大化し、Claude が毎回全部を読む必要がある。追記の衝突</td><td>要約文書（カルテ）として別に持つ</td></tr>
+      </tbody>
+    </table></div>
+    <p>種別（行政協議・施主対応など）はフォルダではなく、各ファイルのフロントマターに付けるタグにします。1つのスレッドが「行政協議」と「設計調整」をまたぐことはよくあり、フォルダで分けると迷子になるためです。</p>
+
+    <h3>Google Drive のフォルダ構成</h3>
+<pre class="tree">秘書AI/
+├─ 00_inbox/                   <span class="c"># 投入口（処理後は自動で移動）</span>
+│   ├─ mail/                   <span class="c"># Power Automate が JSON を投入</span>
+│   ├─ attachments/            <span class="c"># 同じく添付ファイル</span>
+│   ├─ records/                <span class="c"># 音声・メモ・写真の投入口</span>
+│   ├─ bootstrap/              <span class="c"># 初期分析用の過去メール</span>
+│   ├─ _processed/  _error/
+├─ 10_案件/
+│   └─ P-2026-001_桜台三丁目 共同住宅新築/
+│       ├─ _案件カルテ.md      <span class="c"># 現況・マイルストーン・懸案・行政協議の状況（毎朝 AI が更新）</span>
+│       ├─ _決定事項.md        <span class="c"># いつ・どこで・何が決まったか（追記のみ）</span>
+│       ├─ _タスク.md          <span class="c"># Obsidian Tasks 互換の書式</span>
+│       ├─ メール/2026-09/2026-09-25_確認申請の指摘事項4件.md   <span class="c"># スレッド単位</span>
+│       ├─ 記録/2026-09-19_行政協議_建築指導課 事前相談.md
+│       │   └─ 原本/           <span class="c"># 音声・文字起こし・手書きメモ</span>
+│       └─ 添付/               <span class="c"># 受領した図面・見積など + _添付台帳.md（図番・版で追跡）</span>
+├─ 20_一般/  社内/ 経理/ 情報共有/ その他/     <span class="c"># 案件に属さないもの</span>
+├─ 30_日次ブリーフ/2026-09/2026-09-25.md
+└─ _system/
+    ├─ 案件マスタ.md           <span class="c"># 編集可。案件ID・別名・関係ドメイン（振り分けの手がかり）</span>
+    ├─ 分類提案.md             <span class="c"># 初期分析の結果</span>
+    └─ db.json                 <span class="c"># ダッシュボード用の索引</span></pre>
+
+    <h3>種別（カテゴリ）の初期案</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>種別</th><th>含むもの</th><th>記録で特に残す項目</th></tr></thead>
+      <tbody>
+        <tr><td class="nw">行政協議</td><td>確認申請・事前相談・消防同意・開発・景観・道路占用など行政や審査機関とのやりとり</td><td>指摘事項、根拠条文・要綱、回答期限、指導か必須か</td></tr>
+        <tr><td class="nw">施主対応</td><td>施主・発注者からの要望、承認、報告</td><td>要望、決定、保留事項、コストと工程への影響</td></tr>
+        <tr><td class="nw">設計調整</td><td>構造・設備・協力事務所との図面調整</td><td>図番・版（Rev）、変更点、影響範囲</td></tr>
+        <tr><td class="nw">工事・現場</td><td>施工者とのやりとり、検査、是正</td><td>指摘箇所、是正期限、写真</td></tr>
+        <tr><td class="nw">見積・契約</td><td>見積、契約、変更契約、発注</td><td>金額（税抜/税込）、有効期限、前回からの差</td></tr>
+        <tr><td class="nw">工程調整</td><td>日程、工程表、会議招集</td><td>日時、場所、参加者</td></tr>
+        <tr><td class="nw">社内</td><td>社内連絡、承認、人事・総務</td><td>締切、担当</td></tr>
+        <tr><td class="nw">経理・請求</td><td>請求書、支払、精算</td><td>金額、支払期日</td></tr>
+        <tr><td class="nw">情報共有</td><td>業界情報、参考資料（配信メールは除く）</td><td>要点のみ</td></tr>
+        <tr><td class="nw">その他</td><td>上記以外</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p>フェーズ（企画／基本設計／実施設計／確認申請／施工／竣工・引渡／アフター）もタグとして付け、カルテの「現在の状況」の判断に使います。</p>
+
+    <h3>過去メールでの検証（導入時に1回）</h3>
+    <ol class="steps">
+      <li><b>過去6か月分を書き出す</b><span class="d">Power Automate のフロー C が、日ごとの件名・送受信者・冒頭文を <code>00_inbox/bootstrap</code> に保存します。本文全体は読みません。</span></li>
+      <li><b>Claude が案件のまとまりを見つける</b><span class="d"><code>bootstrapTaxonomy()</code> が件名の表記ゆれ（略称・工事番号・施主名だけの件名）をまとめ、案件候補・種別の見直し・除外すべき配信元を出します。</span></li>
+      <li><b>分類提案.md を確認して確定</b><span class="d">案件候補は「提案」状態で案件マスタに入ります。ダッシュボードで承認・名称修正すると、以後の振り分けに使われます。1案件あたりの月間通数が多い場合は、工区や業務単位で案件を分ける所見も出ます。</span></li>
+    </ol>
+  </div>
+</section>
+
+<section id="attach">
+  <div class="wrap">
+    <div class="sec-no">03</div>
+    <h2>添付ファイルの解釈</h2>
+    <p class="lead">ファイルの種類ごとに読み方を変えます。ファイル自体は各案件の「添付」フォルダへ移し、内容の要点は <code>_添付台帳.md</code> に1行ずつ記録します。図面は図番と版で追えるようにしておくと、「最新は Rev. いくつか」をすぐ答えられます。</p>
+    <div class="tbl"><table>
+      <thead><tr><th>種類</th><th>読み方</th><th>抽出する内容</th></tr></thead>
+      <tbody>
+        <tr><td class="nw">PDF</td><td>そのまま Claude に渡す（文字と図の両方を読む。スキャンも可）。1ファイル15MBまで</td><td>図面: 図面名・図番・縮尺・改訂内容（雲マーク、改訂履歴欄）<br>行政文書: 指摘事項・条文・期限<br>見積: 合計・主要項目・有効期限</td></tr>
+        <tr><td class="nw">画像 JPG/PNG</td><td>画像として渡す。15KB 未満は署名ロゴとみなして除外</td><td>現場写真: 部位・状況・不具合／手書きメモ: 文字起こし</td></tr>
+        <tr><td class="nw">Excel</td><td>Google スプレッドシートに一時変換し、全シートを CSV として渡す</td><td>見積内訳、工程表、数量表</td></tr>
+        <tr><td class="nw">Word / PowerPoint</td><td>Google 形式に一時変換してテキスト化</td><td>議事録、仕様書、提案資料の要点</td></tr>
+        <tr><td class="nw">ZIP</td><td>展開して中身を同じ規則で処理（最大15ファイル）</td><td>中身の一覧と各要点</td></tr>
+        <tr><td class="nw">CAD・BIM</td><td>DWG・JWW・DXF・SFC・RVT・IFC などは解析しない</td><td>ファイル名から図番・版だけを記録。同送の PDF 側を解析</td></tr>
+        <tr><td class="nw">大容量転送リンク</td><td>本文中のギガファイル便・firestorage・Box・SharePoint などのリンクを検出</td><td>「ダウンロードして保存」タスクを、期限の前営業日を期日にして作成</td></tr>
+        <tr><td class="nw">HEIC・動画・その他</td><td>メタ情報のみ</td><td>ファイル名・サイズ。iPhone は「互換性優先」設定を推奨</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section class="tint" id="records">
+  <div class="wrap">
+    <div class="sec-no">04</div>
+    <h2>行政協議・施主打合せの記録</h2>
+    <p class="lead">記録は Drive の <code>00_inbox/records</code> に入れるか、ダッシュボードの「記録を追加」から投稿します。メールと同じ案件フォルダに入るので、協議とメールの経緯を1本のタイムラインで追えます。</p>
+    <div class="two">
+      <div>
+        <h4>入れられるもの</h4>
+        <ul>
+          <li><b>音声</b>（m4a / mp3 / wav）: Gemini API で文字起こし → Claude で構造化（Gemini のキー未設定なら、文字起こし済みテキストを同じ名前で入れる）</li>
+          <li><b>テキスト・Word・PDF</b>: 走り書きのメモや Teams の文字起こしをそのまま</li>
+          <li><b>写真</b>: 手書きメモやホワイトボード</li>
+        </ul>
+        <p>ファイル名の先頭に <code>[P-2026-001][行政協議]</code> を付けると案件と種別が確実に決まります。ダッシュボードからの投稿では自動で付きます。</p>
+      </div>
+      <div>
+        <h4>議事録の型</h4>
+        <ul>
+          <li>基本情報の表（日時・場所・相手先・出席者・目的）</li>
+          <li><b>協議事項の表</b>: 論点／相手の指摘・要望／回答・協議結果／根拠（条文・要綱・温度感）／状態（解決・要対応・継続協議・参考）</li>
+          <li>決定事項 → 案件の <code>_決定事項.md</code> にも追記</li>
+          <li>本人のタスク（分解・期日付き）と、相手側の宿題（相手待ち）</li>
+          <li>次回の日時・議題、聞き取れなかった点</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note warn"><b>録音するときは相手の了承を取ってください。</b>行政窓口では録音を断られることもあります。その場合は手書きメモの写真や、協議直後に口頭で吹き込んだ要点メモでも十分に構造化できます。</div>
+  </div>
+</section>
+
+<section id="tasks">
+  <div class="wrap">
+    <div class="sec-no">05</div>
+    <h2>タスクの読み取りと分解</h2>
+    <p class="lead">Claude がメール1通ごとに「本人がやるべきこと」を判定し、1つの成果（提出・回答・決定・手配）ごとにタスクを作ります。提案は自動では確定せず、あなたが採用したものだけがタスク一覧に入ります。</p>
+    <div class="two">
+      <div>
+        <h4>拾う・拾わない</h4>
+        <ul>
+          <li>拾う: To に自分が入り、依頼・質問・確認を求められている／本文で名指し／<b>自分の送信メールで約束したこと</b></li>
+          <li>拾わない: CC だけの共有、他者宛ての依頼、お礼・受領連絡のみ</li>
+          <li>自分が依頼して返事を待っているもの → <b>相手待ち</b>として別管理（催促の判断に使う）</li>
+          <li>送信メールで回答を送ったら、該当タスクを<b>完了候補</b>として提示</li>
+        </ul>
+        <h4>期日の決め方</h4>
+        <ul>
+          <li>期限の明記あり → 期限の1営業日前に最終工程を置き、サブタスクは逆算</li>
+          <li>「至急」→ 当日か翌営業日／「今週中」→ 今週最終営業日／「〇日の打合せまでに」→ 前営業日</li>
+          <li>記載なし → 回答は2営業日、資料作成は5営業日を既定とし「既定」と明示</li>
+          <li>土日・祝日は Google の祝日カレンダーで判定し、休日は前倒し</li>
+        </ul>
+      </div>
+      <div>
+        <h4>分解の例（確認申請の指摘事項）</h4>
+        <div class="tbl"><table>
+          <thead><tr><th>#</th><th>サブタスク</th><th>期日</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>指摘事項を整理し、対応方針（修正/説明）を決める</td><td class="nw mono">9/28</td></tr>
+            <tr><td>2</td><td>日影図を GL+4m 測定面で再作成するよう CAD 担当に依頼</td><td class="nw mono">9/28</td></tr>
+            <tr><td>3</td><td>排煙計算書と避難経路図を修正する</td><td class="nw mono">9/30</td></tr>
+            <tr><td>4</td><td>回答書を作成し所長チェックを受ける</td><td class="nw mono">10/1</td></tr>
+            <tr><td>5</td><td>電子申請システムで回答書と修正図を提出する</td><td class="nw mono">10/2</td></tr>
+          </tbody>
+        </table></div>
+        <p style="font-size:14px;color:var(--ink-2)">期日の根拠: 本文に回答期限 10/5(月) の明記 → 期限の1営業日前に提出。各サブタスクには想定時間も付きます。</p>
+      </div>
+    </div>
+    <div class="status-line"><span class="st a">提案</span><span class="arrow">→ 採用 →</span><span class="st">未着手</span><span class="arrow">→</span><span class="st">進行中</span><span class="arrow">→</span><span class="st g">完了</span><span class="arrow">／</span><span class="st">相手待ち</span><span class="arrow">／</span><span class="st">却下</span></div>
+    <p>タスクは <code>- [ ] 回答書を作成 📅 2026-10-02 ⏫ 🆔 t-…</code> の書式で .md に書き出すので、Drive を Obsidian で開けば Tasks プラグインでもそのまま扱えます。</p>
+  </div>
+</section>
+
+<section class="tint" id="dash">
+  <div class="wrap">
+    <div class="sec-no">06</div>
+    <h2>ダッシュボード</h2>
+    <p class="lead">Notion のページのような落ち着いた構成に、iOS の Liquid Glass のような半透明のサイドバー・上部バー・下部タブバーを重ねています。背景にぼかした色面を置き、ガラス越しに色がにじむようにしました。スマートフォンでは下部のタブバーに切り替わります。</p>
+    <div class="cards">
+      <div class="card"><h4>ホーム</h4><p>毎朝7時の「今日の段取り」、期限切れ・今日期日・提案待ち・相手待ちの件数、今日やること、7日以内の予定、新着メール、案件の動き。</p></div>
+      <div class="card"><h4>提案</h4><p>タスク候補を根拠・期日の理由・サブタスク付きで表示。採用／編集して採用／却下。完了候補と新規案件の候補もここに出ます。</p></div>
+      <div class="card"><h4>タスク</h4><p>期限でまとめたリストと、ドラッグで状態を変えられるボード。自分のタスクと相手待ちを切り替え。</p></div>
+      <div class="card"><h4>案件</h4><p>ギャラリー表示から案件ページへ。案件カルテ・タイムライン（メールと記録）・タスク・決定事項・添付台帳のタブ。</p></div>
+      <div class="card"><h4>記録・メール</h4><p>議事録と解析済みメールの一覧。メールは要約・要点・添付の解析結果・そこから作られたタスクを表示。</p></div>
+      <div class="card"><h4>検索（⌘K）</h4><p>案件・タスク・記録・メール・決定事項を横断検索。添付の図番でも探せます。</p></div>
+    </div>
+    <p style="margin-top:22px"><a href="gas/Dashboard.html">デモを開く →</a>（架空の設計事務所のサンプルデータで動きます）</p>
+  </div>
+</section>
+
+<section id="setup">
+  <div class="wrap">
+    <div class="sec-no">07</div>
+    <h2>導入手順</h2>
+    <p class="lead">所要時間の目安は2〜3時間です。コードはこのリポジトリの <code>secretary/gas/</code> にあります。</p>
+
+    <h3>A. Google 側（Apps Script）</h3>
+    <ol class="steps">
+      <li><b>Apps Script プロジェクトを作る</b><span class="d"><a href="https://script.new" target="_blank" rel="noopener">script.new</a> で新規作成し、<code>secretary/gas/</code> の各ファイルを同じ名前で作って貼り付けます。<code>appsscript.json</code> は「プロジェクトの設定 → 『appsscript.json』マニフェスト ファイルをエディタで表示する」をオンにしてから置き換えます。clasp を使う場合は <code>clasp create --type standalone --rootDir secretary/gas</code> → <code>clasp push</code>。</span></li>
+      <li><b>API キーを用意する</b><span class="d">Anthropic Console で API キーを発行し、<b>月の利用上限</b>を設定します。音声の自動文字起こしを使う場合は Google AI Studio で Gemini の API キーも発行します。</span></li>
+      <li><b>スクリプト プロパティを登録する</b><span class="d"><code>ANTHROPIC_API_KEY</code>、<code>OWNER_NAME</code>（氏名）、<code>OWNER_EMAILS</code>（自分のアドレス。エイリアスもカンマ区切りで）、<code>OWNER_ROLE</code>（例: 設計事務所の意匠設計担当・PM）、任意で <code>GEMINI_API_KEY</code>。</span></li>
+      <li><b>setup() を実行する</b><span class="d">初回は権限の承認画面が出ます。マイドライブに「秘書AI」フォルダが作られ、10分おきの処理と毎朝7時の処理が登録されます。</span></li>
+      <li><b>Web アプリとしてデプロイする</b><span class="d">「デプロイ → 新しいデプロイ → ウェブアプリ」。実行ユーザーは「自分」、アクセスは「自分のみ」。発行された URL をブックマークし、iPhone ではホーム画面に追加します。</span></li>
+    </ol>
+
+    <h3>B. Microsoft 側（Power Automate）</h3>
+    <p>先に Outlook の仕分けルールで、明らかなメールマガジンを別フォルダへ移しておくと、フローが起動する回数そのものが減ります。</p>
+
+    <h4>フロー A: 受信メール → Drive</h4>
+    <ol class="steps">
+      <li><b>トリガー: Office 365 Outlook「新しいメールが届いたとき (V3)」</b><span class="d">フォルダー: 受信トレイ／添付ファイルを含める: はい。</span></li>
+      <li><b>変数を初期化: key（文字列）</b><span class="d"><code>@{formatDateTime(convertFromUtc(triggerOutputs()?['body/receivedDateTime'],'Tokyo Standard Time'),'yyyyMMdd-HHmmss')}_@{substring(replace(guid(),'-',''),0,8)}</code></span></li>
+      <li><b>HTML からテキストへ（コンテンツ変換）</b><span class="d">コンテンツ: <code>triggerOutputs()?['body/body']</code>。アクション名は「HTML_からテキストへ」のままにします。</span></li>
+      <li><b>作成: 除外アドレス／除外ドメイン</b><span class="d">JSON 配列で登録します。例 <code>["news@example.jp"]</code>、<code>["seminar-portal.example.jp"]</code>。ダッシュボードの「稼働状況」に出る送信元を順次追加します。</span></li>
+      <li><b>条件: 配信メールか</b><span class="d">式で次を入れ、「はい」側は何もしない（終了）にします。<br><code>@or(contains(outputs('除外アドレス'), toLower(triggerOutputs()?['body/from'])), contains(outputs('除外ドメイン'), last(split(toLower(triggerOutputs()?['body/from']), '@'))), contains(body('HTML_からテキストへ'), '配信停止'), contains(body('HTML_からテキストへ'), '配信解除'), contains(toLower(body('HTML_からテキストへ')), 'unsubscribe'))</code></span></li>
+      <li><b>「いいえ」側: 添付を保存（Apply to each）</b><span class="d">対象 <code>triggerOutputs()?['body/attachments']</code>。条件 <code>items('Apply_to_each')?['isInline']</code> が false のとき、Google Drive「ファイルの作成」: フォルダー <code>/秘書AI/00_inbox/attachments</code>、名前 <code>@{variables('key')}__@{items('Apply_to_each')?['name']}</code>、内容 <code>@{base64ToBinary(items('Apply_to_each')?['contentBytes'])}</code></span></li>
+      <li><b>選択: 添付一覧</b><span class="d">From <code>triggerOutputs()?['body/attachments']</code>、マップ: name / contentType / size / isInline をそれぞれ <code>item()?['name']</code> などで。アクション名は「選択」。</span></li>
+      <li><b>作成: メール JSON（下のコードをそのまま貼る）</b><span class="d">続けて Google Drive「ファイルの作成」: フォルダー <code>/秘書AI/00_inbox/mail</code>、名前 <code>@{variables('key')}.json</code>、内容 <code>@{outputs('作成')}</code>。<b>添付の保存より後</b>に置いてください。</span></li>
+    </ol>
+<pre>{
+  "schema": "mail.v1",
+  "direction": "in",
+  "id": "@{triggerOutputs()?['body/id']}",
+  "internetMessageId": "@{triggerOutputs()?['body/internetMessageId']}",
+  "conversationId": "@{triggerOutputs()?['body/conversationId']}",
+  "receivedAt": "@{triggerOutputs()?['body/receivedDateTime']}",
+  "from": "@{triggerOutputs()?['body/from']}",
+  "to": "@{triggerOutputs()?['body/toRecipients']}",
+  "cc": "@{triggerOutputs()?['body/ccRecipients']}",
+  "subject": "@{triggerOutputs()?['body/subject']}",
+  "importance": "@{triggerOutputs()?['body/importance']}",
+  "bodyText": "@{body('HTML_からテキストへ')}",
+  "bodyPreview": "@{triggerOutputs()?['body/bodyPreview']}",
+  "attachments": "@body('選択')",
+  "webLink": "https://outlook.office.com/mail/deeplink/read/@{encodeUriComponent(triggerOutputs()?['body/id'])}"
+}</pre>
+    <div class="note">「作成」の入力が正しい JSON として認識されていれば、本文に引用符や改行が含まれていても自動でエスケープされます。貼り付け後に入力欄が赤くならないことを確認してください。webLink のリンクで Outlook が開かない環境では空文字にして構いません。</div>
+
+    <h4>フロー B: 送信メール → Drive</h4>
+    <p>フロー A を「名前を付けて保存」で複製し、トリガーのフォルダーを「送信済みアイテム」に、JSON の <code>direction</code> を <code>"out"</code> に変え、除外の条件を削除します。送信メールから「自分が約束したこと」「相手に頼んだこと（相手待ち）」「回答済み（完了候補）」を読み取ります。</p>
+
+    <h4>フロー C: 過去メールの書き出し（初期分析用・1回だけ）</h4>
+    <ol class="steps">
+      <li><b>手動トリガー</b><span class="d">入力: 開始日（例 2026-03-25）、日数（例 180）。変数 i（整数）＝0。</span></li>
+      <li><b>Do until: i が日数以上</b><span class="d">上限を「回数 400・タイムアウト PT6H」に広げます。中で変数 day ＝ <code>@{formatDateTime(addDays(triggerBody()?['date'], variables('i')), 'yyyy-MM-dd')}</code>。</span></li>
+      <li><b>メールの取得 (V3) を受信トレイと送信済みの2回</b><span class="d">上位: 25、検索クエリ: <code>received:@{variables('day')}</code>、添付を含める: いいえ。1日25通を超える日は一部だけになりますが、分類の提案には十分です。</span></li>
+      <li><b>選択 → Drive に保存</b><span class="d">マップ: receivedAt, direction（"in"/"out"）, from, to（toRecipients）, subject, preview（bodyPreview）, conversationId。受信と送信を <code>union()</code> でまとめ、<code>/秘書AI/00_inbox/bootstrap/@{variables('day')}.json</code> に保存。最後に i を1増やします。</span></li>
+      <li><b>Apps Script で bootstrapTaxonomy() を実行</b><span class="d">時間切れになると1分後に自動で続きから再開します。結果は <code>_system/分類提案.md</code> と、ダッシュボードの「提案 → 新しい案件の候補」に出ます。</span></li>
+    </ol>
+  </div>
+</section>
+
+<section class="tint" id="cost">
+  <div class="wrap">
+    <div class="sec-no">08</div>
+    <h2>費用の目安</h2>
+    <p class="lead">Power Automate は標準コネクタ（Outlook・Google Drive・コンテンツ変換）だけで組めるため、Microsoft 365 の通常ライセンスの範囲です。Apps Script と Drive は無料枠で足ります。費用がかかるのは Claude API です。</p>
+    <div class="calc">
+      <div>
+        <label>1営業日あたりの業務メール数（配信メールを除く、送信含む）<output id="o-mails">40</output><input type="range" id="i-mails" min="5" max="150" step="5" value="40"></label>
+        <label>PDF などの添付があるメールの割合<output id="o-attach">30%</output><input type="range" id="i-attach" min="0" max="80" step="5" value="30"></label>
+        <label>月あたりの打合せ記録<output id="o-rec">10 件</output><input type="range" id="i-rec" min="0" max="60" step="2" value="10"></label>
+        <label>モデル
+          <select id="i-model" style="font:inherit;font-size:15px;padding:6px 8px;border-radius:10px;border:1px solid var(--line)">
+            <option value="opus">Claude Opus 5（精度優先・既定）</option>
+            <option value="sonnet">Claude Sonnet 5（費用優先）</option>
+          </select>
+        </label>
+      </div>
+      <div class="result">
+        <div style="font-size:14px;color:var(--ink-2)">Claude API の月額（推計）</div>
+        <div class="big" id="o-total">$0</div>
+        <div class="row"><span>メール解析</span><span id="o-mail-cost">-</span></div>
+        <div class="row"><span>打合せ記録</span><span id="o-rec-cost">-</span></div>
+        <div class="row"><span>案件カルテ・日次ブリーフ</span><span id="o-daily-cost">-</span></div>
+        <div class="row"><span>メール1通あたり</span><span id="o-per">-</span></div>
+      </div>
+    </div>
+    <div class="note">前提: 月21営業日。メール1通あたり入力約7,000トークン（添付 PDF 1件で平均＋16,000）、共通指示約4,000トークンはキャッシュ読み込み、出力約3,000トークン（思考を含む）。単価は Opus 5 が入力 $5・出力 $25、Sonnet 5 が入力 $2・出力 $10（いずれも100万トークンあたり）。実績はダッシュボードの「稼働状況」で月ごとに確認できます。</div>
+  </div>
+</section>
+
+<section id="risk">
+  <div class="wrap">
+    <div class="sec-no">09</div>
+    <h2>導入前の確認と注意点</h2>
+    <div class="cards">
+      <div class="card"><h4>社内規程</h4><p>業務メールを Google Drive と Claude API に送る構成です。個人の Google アカウントへの保存や外部 AI の利用が規程で制限されていないか、情報システム部門に確認してください。会社契約の Google Workspace があればそちらを推奨します。</p></div>
+      <div class="card"><h4>Power Automate の DLP</h4><p>テナントのデータ損失防止ポリシーで Outlook（ビジネス）と Google Drive（非ビジネス）の併用が禁止されているとフローが保存できません。その場合は管理者に相談が必要です。</p></div>
+      <div class="card"><h4>API データの扱い</h4><p>Anthropic の商用規約では、API で送った内容は既定でモデルの学習に使われません（最新の規約を確認してください）。Console で月の利用上限を必ず設定します。</p></div>
+      <div class="card"><h4>公開範囲</h4><p>ダッシュボードは「自分のみ」でデプロイします。「秘書AI」フォルダは共有しないでください。db.json と .md には取引先の個人情報が含まれます。</p></div>
+      <div class="card"><h4>なりすまし・指示の混入</h4><p>外部からのメール本文に AI への指示が紛れていても、この仕組みは記録とタスク提案しか行わず、メール送信や削除はしません。タスクも採用するまで確定しないため、影響は限定されます。</p></div>
+      <div class="card"><h4>Apps Script の上限</h4><p>個人アカウントはトリガーの合計実行時間が1日90分（Workspace は6時間）です。1日40通程度なら収まります。大きな PDF で応答が遅いときは <code>EFFORT_MAIL</code> を <code>low</code> にします。</p></div>
+    </div>
+    <div class="note">この設計はまだ実環境では動かしていません。導入時は、フロー A で自分宛にテストメールを数通送り、<code>00_inbox/mail</code> に JSON ができること、10分以内に案件フォルダへ .md が書かれることを確認してから本運用にしてください。</div>
+  </div>
+</section>
+
+<section class="tint" id="decide">
+  <div class="wrap narrow">
+    <div class="sec-no">10</div>
+    <h2>確認させてください</h2>
+    <p class="lead">回答を選ぶと下に文章ができます。「回答をコピー」してチャットに貼り付けてください。設定とプロンプトに反映します。</p>
+    <form id="qform" onsubmit="return false">
+      <div class="q"><fieldset><legend>1. お仕事の立場</legend><div class="hint">タスク抽出と分解の前提になります（OWNER_ROLE）。</div>
+        <label class="opt"><input type="radio" name="role" value="設計事務所（意匠設計・PM）"><span>設計事務所（意匠設計・PM）</span></label>
+        <label class="opt"><input type="radio" name="role" value="ゼネコン・工務店（施工管理）"><span>ゼネコン・工務店（施工管理）</span></label>
+        <label class="opt"><input type="radio" name="role" value="デベロッパー・発注者側"><span>デベロッパー・発注者側</span></label>
+        <label class="opt"><input type="radio" name="role" value="その他"><span>その他（下に記入）</span></label>
+        <input type="text" id="role-other" placeholder="例: 不動産会社の開発担当、設備設計 など">
+      </fieldset></div>
+      <div class="q"><fieldset><legend>2. 保存先の Google アカウント</legend>
+        <label class="opt"><input type="radio" name="acct" value="会社契約の Google Workspace"><span>会社契約の Google Workspace</span></label>
+        <label class="opt"><input type="radio" name="acct" value="個人の Google アカウント"><span>個人の Google アカウント<small>社内規程の確認が特に重要です</small></span></label>
+        <label class="opt"><input type="radio" name="acct" value="未定"><span>未定</span></label>
+      </fieldset></div>
+      <div class="q"><fieldset><legend>3. 社内規程・情報システム部門への確認</legend>
+        <label class="opt"><input type="radio" name="policy" value="確認済み（問題なし）"><span>確認済み（問題なし）</span></label>
+        <label class="opt"><input type="radio" name="policy" value="これから確認する"><span>これから確認する</span></label>
+        <label class="opt"><input type="radio" name="policy" value="制約がある（下に記入）"><span>制約がある（下に記入）</span></label>
+        <input type="text" id="policy-note" placeholder="例: 添付ファイルは外部に出せない、など">
+      </fieldset></div>
+      <div class="q"><fieldset><legend>4. 使用するモデル</legend>
+        <label class="opt"><input type="radio" name="model" value="Claude Opus 5（精度優先）"><span>Claude Opus 5（精度優先・既定）</span></label>
+        <label class="opt"><input type="radio" name="model" value="Claude Sonnet 5（費用優先）"><span>Claude Sonnet 5（費用優先。費用は約4割）</span></label>
+        <label class="opt"><input type="radio" name="model" value="まず Opus 5 で始め、1か月後に見直す"><span>まず Opus 5 で始め、1か月後に見直す</span></label>
+      </fieldset></div>
+      <div class="q"><fieldset><legend>5. 音声の文字起こし</legend>
+        <label class="opt"><input type="radio" name="asr" value="Gemini API で自動化する"><span>Gemini API で自動化する</span></label>
+        <label class="opt"><input type="radio" name="asr" value="既存ツールの文字起こしテキストを入れる"><span>既存ツール（Teams・Notta・PLAUD など）の文字起こしテキストを入れる</span></label>
+        <label class="opt"><input type="radio" name="asr" value="録音はせず、メモと写真で記録する"><span>録音はせず、メモと写真で記録する</span></label>
+      </fieldset></div>
+      <div class="q"><fieldset><legend>6. タスクの確定方法</legend>
+        <label class="opt"><input type="radio" name="accept" value="すべて提案で止め、自分で採用する"><span>すべて提案で止め、自分で採用する（既定）</span></label>
+        <label class="opt"><input type="radio" name="accept" value="確度が高いものは自動で採用する"><span>確度が高いものは自動で採用する</span></label>
+      </fieldset></div>
+      <div class="q"><fieldset><legend>7. 初期分析に使う過去メールの期間</legend>
+        <label class="opt"><input type="radio" name="period" value="3か月"><span>3か月</span></label>
+        <label class="opt"><input type="radio" name="period" value="6か月"><span>6か月（推奨）</span></label>
+        <label class="opt"><input type="radio" name="period" value="12か月"><span>12か月</span></label>
+      </fieldset></div>
+      <div class="q"><fieldset><legend>8. 補足（任意）</legend><div class="hint">現在の主な案件名、よく使う略称、除外したい送信元、ダッシュボードで欲しい機能など。</div>
+        <textarea id="free" rows="4"></textarea>
+      </fieldset></div>
+    </form>
+    <div class="answer">
+      <textarea id="answer-text" readonly aria-label="回答の文章"></textarea>
+      <div style="margin-top:10px"><button class="btn" id="copy-btn" type="button">回答をコピー</button><span class="copied" id="copied" hidden>コピーしました</span></div>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap">秘書AI 設計書 ／ コード: <code>secretary/gas/</code>（Google Apps Script）／ ダッシュボード: <code>secretary/gas/Dashboard.html</code></div></footer>
+
+<script>
+(function () {
+  // 費用試算
+  const P = { opus: { in: 5, out: 25, cache: 0.5 }, sonnet: { in: 2, out: 10, cache: 0.2 } };
+  const $ = id => document.getElementById(id);
+  function calc() {
+    const mails = +$('i-mails').value, attach = +$('i-attach').value / 100, rec = +$('i-rec').value, p = P[$('i-model').value];
+    $('o-mails').textContent = mails; $('o-attach').textContent = Math.round(attach * 100) + '%'; $('o-rec').textContent = rec + ' 件';
+    const perMail = ((3000 + attach * 16000) * p.in + 4000 * p.cache + 3000 * p.out) / 1e6;
+    const mailCost = perMail * mails * 21;
+    const recCost = rec * ((20000) * p.in + 5000 * p.out) / 1e6;
+    const dailyCost = 21 * (Math.min(8, Math.ceil(mails / 8)) * (10000 * p.in + 2000 * p.out) + (6000 * p.in + 1500 * p.out)) / 1e6;
+    const f = v => '$' + v.toFixed(v < 10 ? 2 : 0);
+    $('o-mail-cost').textContent = f(mailCost); $('o-rec-cost').textContent = f(recCost); $('o-daily-cost').textContent = f(dailyCost);
+    $('o-per').textContent = '$' + perMail.toFixed(3);
+    $('o-total').innerHTML = f(mailCost + recCost + dailyCost) + ' <small>／月　（約 ' + Math.round((mailCost + recCost + dailyCost) * 150).toLocaleString() + ' 円・1ドル150円）</small>';
+  }
+  ['i-mails', 'i-attach', 'i-rec', 'i-model'].forEach(id => $(id).addEventListener('input', calc));
+  calc();
+
+  // 確認事項 → 回答文
+  const form = $('qform');
+  function answer() {
+    const v = n => { const el = form.querySelector('input[name="' + n + '"]:checked'); return el ? el.value : '（未回答）'; };
+    let role = v('role'); if (role === 'その他') role = 'その他: ' + ($('role-other').value || '');
+    let policy = v('policy'); if (policy.indexOf('制約') === 0) policy += ' ' + ($('policy-note').value || '');
+    $('answer-text').value = [
+      '【秘書AI 確認事項への回答】',
+      '1. 立場: ' + role,
+      '2. Google アカウント: ' + v('acct'),
+      '3. 社内規程: ' + policy,
+      '4. モデル: ' + v('model'),
+      '5. 音声の文字起こし: ' + v('asr'),
+      '6. タスクの確定: ' + v('accept'),
+      '7. 初期分析の期間: ' + v('period'),
+      '8. 補足: ' + ($('free').value.trim() || 'なし'),
+    ].join('\n');
+  }
+  form.addEventListener('input', answer);
+  form.addEventListener('change', answer);
+  answer();
+  $('copy-btn').addEventListener('click', () => {
+    const t = $('answer-text');
+    const done = () => { $('copied').hidden = false; setTimeout(() => { $('copied').hidden = true; }, 2000); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t.value).then(done, () => { t.select(); });
+    else t.select();
+  });
+})();
+</script>
+</body>
+</html>
