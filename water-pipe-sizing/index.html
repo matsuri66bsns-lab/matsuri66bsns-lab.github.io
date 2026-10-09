@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>給水管口径計算</title>
+<meta name="description" content="器具給水負荷単位法とヘーゼン・ウィリアムス式で給水配管の口径を算定し、系統図・配管平面図を作成するアプリ">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230071e3'/%3E%3Cpath d='M18 46V22h10v14h18' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="appbar no-print">
+  <div class="appbar-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">給水管口径計算</span>
+    </div>
+    <nav class="tabs" aria-label="画面切替"></nav>
+    <div class="appbar-actions">
+      <span id="status-badge" class="badge">—</span>
+      <button id="btn-new" class="btn-text">新規</button>
+      <button id="btn-open" class="btn-text">開く</button>
+      <button id="btn-save" class="btn-secondary">保存</button>
+      <input id="open-file" type="file" accept=".json,application/json" class="hidden">
+    </div>
+  </div>
+</header>
+
+<main class="main">
+  <section id="view-settings" class="view" hidden></section>
+  <section id="view-input" class="view" hidden></section>
+  <section id="view-results" class="view" hidden></section>
+  <section id="view-riser" class="view" hidden></section>
+  <section id="view-plan" class="view" hidden></section>
+  <section id="view-masters" class="view" hidden></section>
+  <section id="view-report" class="view" hidden></section>
+</main>
+
+<script src="vendor/pdfjs/pdf.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/data/fixtures.js"></script>
+<script src="js/data/pipes.js"></script>
+<script src="js/calc/flow.js"></script>
+<script src="js/calc/hydraulics.js"></script>
+<script src="js/calc/network.js"></script>
+<script src="js/modes/simple.js"></script>
+<script src="js/modes/trace.js"></script>
+<script src="js/draw/riser.js"></script>
+<script src="js/report.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

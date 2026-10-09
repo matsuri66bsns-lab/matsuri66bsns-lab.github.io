@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>給水管口径計算ガイド</title>
+<style>
+  :root {
+    --bg: #ffffff; --bg-2: #f5f5f7; --text: #1d1d1f; --text-2: #6e6e73; --line: #d2d2d7; --accent: #0071e3;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif; line-height: 1.75; -webkit-font-smoothing: antialiased; }
+  header { background: var(--bg-2); padding: 72px 16px 56px; text-align: center; }
+  header .kicker { color: var(--accent); font-weight: 600; font-size: 14px; }
+  header h1 { font-size: clamp(32px, 6vw, 52px); letter-spacing: -0.02em; margin: 6px 0 12px; line-height: 1.15; }
+  header p { color: var(--text-2); font-size: 18px; max-width: 680px; margin: 0 auto; }
+  header a.cta { display: inline-block; margin-top: 24px; background: var(--accent); color: #fff; text-decoration: none; padding: 10px 22px; border-radius: 999px; font-weight: 500; }
+  main { max-width: 880px; margin: 0 auto; padding: 24px 16px 96px; }
+  section { padding: 40px 0; border-bottom: 1px solid #e8e8ed; }
+  section:last-child { border-bottom: 0; }
+  h2 { font-size: 28px; letter-spacing: -0.015em; margin: 0 0 16px; }
+  h3 { font-size: 18px; margin: 24px 0 8px; }
+  p, li { font-size: 15px; }
+  .muted { color: var(--text-2); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 16px; }
+  .card { background: var(--bg-2); border-radius: 16px; padding: 20px; }
+  .card h3 { margin-top: 0; }
+  .card p { margin: 0; color: var(--text-2); font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 12px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid #e8e8ed; vertical-align: top; }
+  th { color: var(--text-2); font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+  .tablewrap { overflow-x: auto; }
+  ol.flow { counter-reset: s; list-style: none; padding: 0; }
+  ol.flow li { counter-increment: s; position: relative; padding: 0 0 14px 44px; }
+  ol.flow li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--text); color: #fff; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+  .formula { background: var(--bg-2); border-radius: 12px; padding: 14px 18px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 14px; overflow-x: auto; }
+  kbd { background: var(--bg-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 6px; font-size: 12px; font-family: inherit; }
+  .note { background: #fff8e6; border-radius: 12px; padding: 14px 18px; font-size: 14px; color: #6b4f00; }
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">water-pipe-sizing</div>
+  <h1>給水管口径計算</h1>
+  <p>器具給水負荷単位法と許容摩擦損失・流速法で給水配管の口径を算定し、系統図と配管平面図を作るアプリの使い方と計算根拠です。</p>
+  <a class="cta" href="../index.html">アプリを開く</a>
+</header>
+<main>
+
+<section>
+  <h2>できること</h2>
+  <div class="cards">
+    <div class="card"><h3>2つの入力モード</h3><p>階・水廻りエリア・器具数から組み立てる「簡易定義」と、PDF図面をなぞって作図する「PDFトレース」。</p></div>
+    <div class="card"><h3>自動で口径算定</h3><p>入力するたびに全区間の流量・口径・損失と、全器具の残圧を再計算します。</p></div>
+    <div class="card"><h3>図面と計算書</h3><p>系統図（SVG / PNG）、口径を記入した配管平面図（PNG）、A4の計算書（印刷 / PDF）、CSVを出力します。</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>作業の流れ</h2>
+  <ol class="flow">
+    <li><b>設計条件</b>：給水方式、起点圧力・起点高さ、管種、流速上限、相当長の倍率、公衆用/私室用を設定します。</li>
+    <li><b>入力・作図</b>：簡易定義かPDFトレースを選んで、配管系統を入力します。</li>
+    <li><b>計算結果</b>：区間別計算表と器具別残圧を確認します。画面右上のバッジに判定と主管口径が出ます。</li>
+    <li><b>系統図・平面図</b>：自動生成された図を確認し、必要に応じて保存します。</li>
+    <li><b>計算書</b>：「印刷 / PDF保存」でA4の計算書にします。</li>
+    <li><b>保存</b>：右上の「保存」でプロジェクトファイル（.wps.json）に書き出します。</li>
+  </ol>
+</section>
+
+<section>
+  <h2>簡易定義モード</h2>
+  <p>階ごとに水廻りエリア（便所、給湯室など）を置き、エリアごとに器具の種類と個数を入れます。次の形の系統を自動で組み立てます。</p>
+  <div class="formula">水源 ─主管─ 立管 ─(各階)─ 横引き枝管 ─ エリア ─ 器具間配管 … ─ 器具枝管 ─ 器具</div>
+  <ul>
+    <li>「階構成の一括設定」で階数と階高を指定すると、1番目の階のエリア構成を全階にコピーして作り直します。</li>
+    <li>「立管からの距離」は立管からエリア入口までの横引き長さ、「器具間隔」はエリア内の器具どうしの間隔です。</li>
+    <li>下向き供給（高置水槽）では最上階から立管を下ろします。起点圧力は通常 0、起点の高さに水槽の低水位を入れます。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>PDFトレースモード</h2>
+  <p>PDFの各ページを1つの階として扱います。ページごとに階名・FL・配管高さ・縮尺を右パネルで設定してください。PDFがなくても白紙ページで作図できます。</p>
+  <div class="tablewrap"><table>
+    <tr><th>ツール</th><th>キー</th><th>操作</th></tr>
+    <tr><td>配管を描く</td><td><kbd>P</kbd></td><td>クリックで折れ線を描画。既存の節点・配管上をクリックすると接続・分岐。<kbd>Shift</kbd>で水平/垂直、ダブルクリック・右クリック・<kbd>Esc</kbd>で終了。</td></tr>
+    <tr><td>線を自動認識</td><td><kbd>T</kbd></td><td>図面上の配管線をクリックすると、線を追跡して曲がり角ごとに配管化。既存の配管・節点に当たると止まってそこへ接続します。</td></tr>
+    <tr><td>線色を取得</td><td><kbd>I</kbd></td><td>給水管の線をクリックして色を登録。自動認識はその色の線だけを追います。</td></tr>
+    <tr><td>器具</td><td><kbd>F</kbd></td><td>右パネルで器具を選んでクリック。近くの配管へ自動で接続します。</td></tr>
+    <tr><td>水源</td><td><kbd>S</kbd></td><td>引込・水槽・ポンプ位置。プロジェクトに1つ。</td></tr>
+    <tr><td>立管</td><td><kbd>R</kbd></td><td>同じ記号（R1 など）の立管どうしを、FLの差の鉛直区間で自動接続します。</td></tr>
+    <tr><td>縮尺合わせ</td><td><kbd>K</kbd></td><td>寸法の分かる2点をクリックし、実寸[m]を入力。</td></tr>
+    <tr><td>選択・移動 / 削除</td><td><kbd>V</kbd> / <kbd>E</kbd></td><td>節点のドラッグ移動、種類の変更、<kbd>Delete</kbd>で削除。</td></tr>
+    <tr><td>表示</td><td><kbd>H</kbd></td><td>ドラッグ（または<kbd>Space</kbd>＋ドラッグ、中ボタン）で移動、ホイールで拡大縮小。</td></tr>
+  </table></div>
+  <p class="muted">配管の長さ＝平面上の長さ×縮尺＋高低差。器具の高さは「FL＋器具取付高さ」、配管は「FL＋配管高さ」です。PDF本体はプロジェクトファイルに含まれないため、開き直したときは同じPDFを再度読み込んでください。</p>
+</section>
+
+<section>
+  <h2>計算方法</h2>
+  <h3>1. 同時使用流量</h3>
+  <p>各区間の下流にある器具の給水負荷単位を合計し、SHASE-S 206 の同時使用流量線図（①洗浄弁が多い場合、②洗浄タンクが多い場合）から流量を求めます。線図は「自動」にすると、下流に洗浄弁がある区間で①を使います。下流の器具が1個の区間は器具の給水流量とし、複数でも最大器具流量を下回らないようにします。</p>
+  <h3>2. 許容摩擦損失</h3>
+  <div class="formula">R = (起点圧力 − 器具の最低必要圧力 − ρg × 高低差) ÷ 水源から器具までの相当長</div>
+  <p>器具ごとに R を求め、各区間ではその下流にある器具の最小値を使います。相当長は「実長 × 相当長の倍率」です。</p>
+  <h3>3. 口径の選定</h3>
+  <div class="formula">h/L = 10.666 · C<sup>−1.852</sup> · D<sup>−4.87</sup> · Q<sup>1.852</sup>　[m/m]　（ρg = 9.80665 kPa/m）</div>
+  <p>流速 ≤ 上限 かつ 摩擦損失 ≤ R を満たす最小口径を選び、下流より細くならないよう補正します。器具単独の枝管は、設定により器具の接続口径を優先します（流速超過は「注意」と表示）。</p>
+  <h3>4. 検算</h3>
+  <p>決定口径で各器具の残圧（起点圧力 − 摩擦損失の累計 − 静水頭）を求め、必要圧力を下回る器具を「圧力不足」とします。全器具のうち最も厳しい値が「必要起点圧力」です。</p>
+</section>
+
+<section>
+  <h2>初期値と注意点</h2>
+  <ul>
+    <li>器具給水負荷単位は SHASE-S 206 の表、同時使用流量線図は Hunter 曲線系の数表を補間した近似値です。</li>
+    <li>器具の給水流量・必要圧力・接続口径、ライニング鋼管と架橋ポリエチレン管の内径は標準的な参考値です。採用製品の値に合わせて「マスタ」で調整してください。</li>
+    <li>樹枝状配管のみ対応です。ループになった区間は計算から除外し、警告を出します。</li>
+    <li>水道メーター・逆流防止器・減圧弁など機器の損失は、現時点では個別に入力できません。相当長の倍率か起点圧力で見込んでください。</li>
+  </ul>
+  <p class="note">本アプリの結果は設計の補助です。最終的な口径は、水道事業体の給水装置工事設計基準と採用製品の資料で確認してください。</p>
+</section>
+
+<section>
+  <h2>今後の拡張（予定）</h2>
+  <ul>
+    <li>Electron によるデスクトップアプリ化（<code>npm run dist:win</code> の雛形は同梱済み）</li>
+    <li>水道メーター・機器の損失、給湯配管への対応</li>
+    <li>PDFのベクター線データを使った自動認識（現在は画像として追跡）</li>
+    <li>DXF 出力</li>
+  </ul>
+</section>
+
+</main>
+</body>
+</html>
