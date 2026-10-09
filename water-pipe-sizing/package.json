@@ -1,0 +1,25 @@
+{
+  "name": "water-pipe-sizing",
+  "productName": "給水管口径計算",
+  "version": "0.1.0",
+  "description": "給水配管の口径算定（器具給水負荷単位法・許容摩擦損失/流速法）と系統図・配管平面図の作成",
+  "main": "desktop/main.js",
+  "private": true,
+  "scripts": {
+    "test": "node tests/calc.test.js",
+    "serve": "python3 -m http.server 8080",
+    "start": "electron .",
+    "dist:win": "electron-builder --win portable",
+    "dist:mac": "electron-builder --mac dmg"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "io.github.matsuri66bsns-lab.water-pipe-sizing",
+    "productName": "給水管口径計算",
+    "files": ["index.html", "css/**", "js/**", "vendor/**", "desktop/**"],
+    "directories": { "output": "dist" }
+  }
+}
